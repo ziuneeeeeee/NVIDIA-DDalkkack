@@ -771,3 +771,125 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* Bright visual theme — keep the existing layout and behavior unchanged. */
+:root {
+  --bright-ink: #20204a;
+  --bright-muted: #72749a;
+  --bright-primary: #6957e8;
+  --bright-primary-dark: #5140d2;
+  --bright-line: #e6e5f3;
+}
+
+body {
+  color: var(--bright-ink);
+  background: #f8f8ff;
+}
+
+.app-root {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 5% 10%, rgba(217, 210, 255, .56), transparent 27rem),
+    radial-gradient(circle at 96% 6%, rgba(195, 231, 255, .55), transparent 26rem),
+    linear-gradient(180deg, #fbfaff 0%, #f4f3ff 52%, #fafaff 100%);
+}
+
+.bg-aurora { opacity: .32; }
+.bg-aurora::after { background: transparent; }
+
+.site-header .eyebrow {
+  color: var(--bright-primary);
+  background: rgba(255,255,255,.72);
+  border-color: #dedafa;
+  box-shadow: 0 8px 24px rgba(89, 70, 191, .08);
+}
+.eyebrow .dot { background: #8f7cff; box-shadow: 0 0 6px #8f7cff; }
+.site-header h1 {
+  background: linear-gradient(110deg, #302a71, #6756db 55%, #7a69e9);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.site-header .sub { color: var(--bright-muted); }
+
+.mode-tabs {
+  background: rgba(255,255,255,.78);
+  border-color: var(--bright-line);
+  box-shadow: 0 10px 28px rgba(79, 63, 170, .08);
+}
+.mode-tab { color: #8889a8; }
+.mode-tab:hover:not(.active) { color: var(--bright-primary); background: #f4f2ff; }
+.mode-tab.active { color: #fff; background: var(--bright-primary); box-shadow: 0 5px 14px rgba(91, 73, 205, .28); }
+
+.panel {
+  background: rgba(255,255,255,.92);
+  border-color: var(--bright-line);
+  box-shadow: 0 14px 36px rgba(58, 49, 129, .08);
+  backdrop-filter: blur(18px);
+}
+.panel::before { background: linear-gradient(90deg, transparent, rgba(135, 116, 239, .45), transparent); }
+.panel:hover {
+  border-color: #d4cff6;
+  box-shadow: 0 16px 40px rgba(58, 49, 129, .12);
+}
+.panel-title, .field-label, .section-divider span { color: #8584a2; }
+
+.text-input, .select-input, .textarea-input {
+  color: var(--bright-ink);
+  background: #fbfaff;
+  border-color: #dfddec;
+}
+.text-input::placeholder, .textarea-input::placeholder { color: #aaaac0; }
+.text-input:focus, .select-input:focus, .textarea-input:focus {
+  border-color: #9a8df0;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(105, 87, 232, .12);
+}
+.select-input option { background: #fff; color: var(--bright-ink); }
+.hint { color: #8a89a5; }
+
+.btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, #7563ed, #5b4ad4);
+  box-shadow: 0 7px 16px rgba(91, 74, 212, .22);
+}
+.btn-primary:hover:not(:disabled) { box-shadow: 0 10px 24px rgba(91, 74, 212, .3); }
+.btn-ghost { color: var(--bright-primary); border-color: #d9d4fa; background: rgba(255,255,255,.7); }
+.btn-ghost:hover:not(:disabled) { color: var(--bright-primary-dark); border-color: #bdb3f4; background: #f7f5ff; }
+
+.problem-type-badge { background: #f0edff; color: var(--bright-primary); border-color: #d9d2ff; }
+.badge-obj { background: #eaf5ff; color: #4383c5; border-color: #cce5fa; }
+.badge-code { background: #e7fbf2; color: #2c9b71; border-color: #c7f0df; }
+.badge-generic { background: #fff5df; color: #ba7c17; border-color: #f6dfb0; }
+.problem-body { color: #39395d; background: #fafaff; border-color: #ebeaf4; border-left-color: #8a79eb; }
+
+.panel.result-panel {
+  color: var(--bright-ink);
+  background: linear-gradient(145deg, #ffffff 0%, #f5f3ff 100%);
+  border-color: #d9d3fb;
+}
+.score-num, .total-score-card .ts-num {
+  background: linear-gradient(125deg, #3e347e 0%, #6a57e4 60%, #609bd4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.score-denom, .total-score-card .ts-label { color: #8583a5; }
+.sbar-track { background: #ecebf6; }
+.sbar-fill { background: linear-gradient(90deg, #7563ed, #7bbaf5); box-shadow: none; }
+.meta-chip { background: rgba(255,255,255,.75); border-color: #e2dff1; }
+.meta-chip .mc-label { color: #8b89a6; }
+.meta-chip .mc-value, .crit-name { color: #454268; }
+.meta-chip.warn { background: #fff8ec; border-color: #f4d69a; }
+.diagnosis-panel { background: #fff4f3; border-color: #f5d3d0; }
+.diagnosis-panel .dp-title { color: #cf6662; }
+.diagnosis-panel p, .crit-reason { color: #7d7480; }
+.diagnosis-panel strong { color: #5e5666; }
+.section-divider::before, .section-divider::after { background: #e6e4ef; }
+.crit-row { background: rgba(255,255,255,.68); border-color: #e6e4ef; }
+.crit-row:hover { background: #faf9ff; border-color: #d5cff5; }
+.crit-tag.pos { background: #e9f8ef; color: #3a9b6e; border-color: #c9ebd8; }
+.crit-tag.neg { background: #fff0ef; color: #d56b66; border-color: #f3cfcc; }
+.recommend-panel { border-color: #d9d2fb; background: linear-gradient(135deg, #f5f1ff, #f0f8ff); }
+.recommend-panel .rp-title { color: var(--bright-primary); }
+.recommend-panel p { color: #6e6d8d; }
+.recommend-panel strong { color: #413d67; }
