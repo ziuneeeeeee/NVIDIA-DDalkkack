@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.clients import get_openai_client
 
@@ -108,7 +109,10 @@ def _build_user_prompt(concepts: list[dict]) -> str:
     return "\n".join(lines)
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=20))
 def _score_chunk(chunk: list[dict]) -> list[ConceptScore]:
+    """API 호출 실패(rate limit, 타임아웃 등) 시 최대 3회, 지수 백오프로 재시도한다.
+    20개 배치 전체를 다시 돌리는 비용을 피하기 위함."""
     client = get_openai_client()
     response = client.beta.chat.completions.parse(
         model=MODEL,
@@ -119,6 +123,24 @@ def _score_chunk(chunk: list[dict]) -> list[ConceptScore]:
         response_format=BatchScoreResult,
     )
     return response.choices[0].message.parsed.scores
+
+
+REQUIRED_CONCEPT_FIELDS = ("concept_id", "concept_name")
+
+
+def _validate_concepts(concepts: list[dict]) -> None:
+    """팀원 1 산출물(concept_bank.json)이 필수 필드를 갖췄고 concept_id가
+    중복되지 않는지 먼저 검증한다. 여기서 걸러야 이후 단계에서 애매한
+    KeyError 대신 어떤 개념이 문제인지 바로 알 수 있다."""
+    seen_ids: set[str] = set()
+    for i, c in enumerate(concepts):
+        missing = [f for f in REQUIRED_CONCEPT_FIELDS if not c.get(f)]
+        if missing:
+            raise ValueError(f"concept_bank[{i}]에 필수 필드가 없습니다: {missing} (concept={c!r})")
+        cid = c["concept_id"]
+        if cid in seen_ids:
+            raise ValueError(f"concept_id가 중복되었습니다: '{cid}'")
+        seen_ids.add(cid)
 
 
 def _score_all_concepts(concepts: list[dict]) -> dict[str, ConceptScore]:
@@ -211,16 +233,18 @@ def finalize_category(
     return "DESCRIPTIVE"
 
 
-def map_concepts_to_types(concepts: list[dict], target_total: int = TARGET_TOTAL) -> list[dict]:
+def map_concepts_to_types(concepts: list[dict]) -> list[dict]:
     """concept_bank.json의 개념 리스트를 받아 mapped_category/difficulty가
     추가된 mapped_concepts 리스트를 반환한다. (팀원 3/4에게 그대로 전달되는 포맷)
 
-    target_total은 기본 20으로 고정되어 있으며, 실제로 들어온 concepts 개수가
-    이와 다르면 목표 비율(40/30/30, 30/50/20%)을 유지한 채 자동으로 스케일링한다.
+    목표 개수는 20개 기준(CATEGORY_TARGET_COUNTS/DIFFICULTY_TARGET_COUNTS)으로
+    고정되어 있으며, 실제로 들어온 concepts 개수가 이와 다르면 목표 비율
+    (40/30/30, 30/50/20%)을 유지한 채 자동으로 스케일링한다.
     """
     if not concepts:
         return []
 
+    _validate_concepts(concepts)
     scores = _score_all_concepts(concepts)
 
     category_quota = scale_quota(CATEGORY_TARGET_COUNTS, len(concepts))

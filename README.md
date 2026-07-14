@@ -42,6 +42,45 @@
 - [단건 학습] / [종합 모의고사] 모드 탭 전환
 - 항목별 채점 근거, 점수 바, 오답 진단, 다음 추천 학습 시각화
 
+### 6. 🧩 팀 협업 파이프라인: 개념 → 문제유형 매핑 (concept_bank → mapped_concepts)
+
+팀원1(개념 추출) → **팀원2(유형/난이도 매핑)** → 팀원3(문제 생성) / 팀원4(루브릭 생성)으로 이어지는
+20문제 고정 시험지 조립 파이프라인의 중간 단계입니다. `nodes/type_mapping.py`가 담당합니다.
+
+**입력** — 팀원1 산출물 `concept_bank.json` (리스트):
+```json
+{
+  "concept_id": "concept_h001",
+  "concept_name": "Heap의 정의와 heap property",
+  "concept_summary": "...",
+  "source_title": "Heap",
+  "source_pages": [3],
+  "source_context": "..."
+}
+```
+`concept_id`, `concept_name`은 필수. 누락되거나 `concept_id`가 중복되면 즉시 에러로 알려줍니다.
+
+**출력** — `mapped_concepts.json`. 원본 필드에 아래가 추가됩니다:
+
+| 필드 | 값 | 설명 |
+|---|---|---|
+| `mapped_category` | `CALCULATION`/`MULTIPLE_CHOICE`/`TRUE_FALSE`/`DESCRIPTIVE` | 문제 유형 |
+| `mapping_reason` | 한국어 문자열 | 유형 판단 근거 |
+| `difficulty` | `쉬움`/`보통`/`어려움` | 난이도 |
+| `difficulty_reason` | 한국어 문자열 | 난이도 판단 근거 |
+| `confidence` | `high`/`low` | `low`면 점수 1순위 유형과 실제 배정이 다른 경계 케이스 |
+| `runner_up_category` | (confidence가 low일 때만) | 차점 유형 |
+
+**목표 비율은 20문제 고정 기준으로 코드가 강제합니다** (LLM은 적합도 점수만 매기고,
+실제 개수 배정은 결정론적 로직이 수행 — 개념 수가 20이 아니면 동일 비율로 자동 스케일링):
+- 유형: 객관식 8 / 참거짓 6 / 서술형+계산형 6 (40% / 30% / 30%)
+- 난이도: 쉬움 6 / 보통 10 / 어려움 4 (30% / 50% / 20%)
+
+**실행**:
+```bash
+python scripts/map_concepts.py --input concept_bank.json --output mapped_concepts.json
+```
+
 ---
 
 ## 📂 디렉터리 아키텍처
@@ -67,6 +106,7 @@ study_helper_web/
 ├── nodes/                   # 개별 AI 에이전트 및 기능 노드
 │   ├── retrieve.py          # 하이브리드 RAG 검색 (Vector + BM25)
 │   ├── generation.py        # 문제 생성 4-에이전트 (Generator/Validator/Difficulty/Concluder)
+│   ├── type_mapping.py      # [팀원2] concept_bank -> mapped_concepts 배치 유형/난이도 매핑
 │   ├── rubric.py            # 루브릭 생성(GPT-4o) + 4종 검증 에이전트
 │   ├── essay_grading.py     # 서술형 채점 3-에이전트 (Strict/Lenient/Keyword)
 │   ├── objective_grading.py # 객관식·단답형 정규화 자동 채점
@@ -78,7 +118,8 @@ study_helper_web/
 │   └── parse_problem.py     # 이미지 URL → GPT-4o Vision 전처리 (OCR 확장 예정)
 │
 ├── scripts/
-│   └── ingest.py            # PDF 강의자료 → ChromaDB + BM25 인덱싱
+│   ├── ingest.py            # PDF 강의자료 → ChromaDB + BM25 인덱싱
+│   └── map_concepts.py      # [팀원2] concept_bank.json -> mapped_concepts.json CLI
 │
 └── frontend/                # React (Vite) 프론트엔드
     ├── src/
