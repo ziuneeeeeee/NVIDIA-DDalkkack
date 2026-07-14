@@ -44,18 +44,22 @@
 
 ### 6. 🧩 팀 협업 파이프라인: 개념 → 문제유형 매핑 (concept_bank → mapped_concepts)
 
-팀원1(개념 추출) → **팀원2(유형/난이도 매핑)** → 팀원3(문제 생성) / 팀원4(루브릭 생성)으로 이어지는
-최대 20문제 시험지 조립 파이프라인의 중간 단계입니다. `nodes/type_mapping.py`가 담당합니다.
+팀원1(핵심개념 추출·선별) → **팀원2(문제유형 매핑)** → 팀원3(문제 생성) / 팀원4(루브릭 생성)으로
+이어지는 시험지 조립 파이프라인의 중간 단계입니다. `nodes/type_mapping.py`가 담당합니다.
 
-**입력** — 팀원1 산출물 `concept_bank.json` (리스트):
+**역할 경계**: 핵심개념 선별(중요도 판단, 최대 20개 제한)은 팀원1이 담당합니다.
+팀원2는 넘어온 개념의 개수를 다시 자르거나 순위를 매기지 않고 **있는 그대로 전부**
+매핑합니다. 난이도 판정도 팀원2의 책임 범위가 아닙니다.
+
+**입력** — 팀원1 산출물 `concept_bank.json` (리스트, 실제 산출물 예시):
 ```json
 {
-  "concept_id": "concept_h001",
-  "concept_name": "Heap의 정의와 heap property",
-  "concept_summary": "...",
+  "concept_id": "concept_0003",
+  "concept_name": "Heap",
+  "concept_summary": "A heap is a type of binary tree where each node's value is greater than or equal to the values of its children...",
   "source_title": "Heap",
   "source_pages": [3],
-  "source_context": "..."
+  "source_context": "±  Heap\n®  An essentially complete binary tree such that..."
 }
 ```
 `concept_id`, `concept_name`은 필수. 누락되거나 `concept_id`가 중복되면 즉시 에러로 알려줍니다.
@@ -66,19 +70,14 @@
 |---|---|---|
 | `mapped_category` | `CALCULATION`/`MULTIPLE_CHOICE`/`TRUE_FALSE`/`DESCRIPTIVE` | 문제 유형 |
 | `mapping_reason` | 한국어 문자열 | 유형 판단 근거 |
-| `difficulty` | `쉬움`/`보통`/`어려움` | 난이도 |
-| `difficulty_reason` | 한국어 문자열 | 난이도 판단 근거 |
 | `confidence` | `high`/`low` | `low`면 1순위·2순위 유형의 점수 차이가 작은(15점 미만) 경계 케이스 |
 | `runner_up_category` | (confidence가 low일 때만) | 차점 유형 |
-| `importance_score` | 0~100 | 핵심도 점수 (20개 초과 시 이 점수로 상위 선별) |
 
-**유형/난이도 모두 비율을 고정하지 않습니다.** LLM이 개념별로 4개 유형·3개 난이도
-각각에 대한 적합도 점수를 매기면, 그중 가장 점수가 높은 값을 그대로 채택합니다
-(개념의 내용 성격에 따라 자연스럽게 분포가 결정됨).
-
-**문제 총 개수는 `min(핵심개념 수, 20)`**: 핵심개념이 20개를 넘으면 '핵심도
-(importance_score)' 상위 20개만 선택하고, 20개 이하면 억지로 채우지 않고 있는
-만큼 전부 사용합니다.
+**비율을 고정하지 않습니다.** LLM이 개념별로 4개 유형 각각에 대한 적합도 점수를
+매기면, 그중 가장 점수가 높은 값을 그대로 채택합니다 (개념의 내용 성격에 따라
+자연스럽게 분포가 결정됨). 실제 알고리즘 강의자료 20개 개념으로 테스트한 결과
+DESCRIPTIVE 60% / CALCULATION 25%(수치·복잡도 계산이 실제로 있는 개념만) /
+MULTIPLE_CHOICE 15%로, 억지 균형 없이 콘텐츠 성격을 그대로 반영했습니다.
 
 **실행**:
 ```bash
@@ -110,7 +109,7 @@ study_helper_web/
 ├── nodes/                   # 개별 AI 에이전트 및 기능 노드
 │   ├── retrieve.py          # 하이브리드 RAG 검색 (Vector + BM25)
 │   ├── generation.py        # 문제 생성 4-에이전트 (Generator/Validator/Difficulty/Concluder)
-│   ├── type_mapping.py      # [팀원2] concept_bank -> mapped_concepts 배치 유형/난이도 매핑
+│   ├── type_mapping.py      # [팀원2] concept_bank -> mapped_concepts 문제유형 매핑
 │   ├── rubric.py            # 루브릭 생성(GPT-4o) + 4종 검증 에이전트
 │   ├── essay_grading.py     # 서술형 채점 3-에이전트 (Strict/Lenient/Keyword)
 │   ├── objective_grading.py # 객관식·단답형 정규화 자동 채점

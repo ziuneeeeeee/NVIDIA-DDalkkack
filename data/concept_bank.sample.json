@@ -1,34 +1,204 @@
 [
   {
-    "concept_id": "concept_h001",
-    "concept_name": "Heap의 정의와 heap property",
-    "concept_summary": "완전 이진 트리이면서, 각 노드의 값이 자식 노드의 값보다 크거나 같은 속성(heap property)을 만족하는 자료구조.",
+    "concept_id": "concept_0002",
+    "concept_name": "Complete Binary Tree",
+    "concept_summary": "A complete binary tree is a binary tree where all internal nodes have two children, and all leaves have the same depth.",
+    "source_title": "Binary tree",
+    "source_pages": [
+      2
+    ],
+    "source_context": "±   Complete binary tree\n®   All internal nodes have two children\n®   All leaves have depth d\n±   Essentially complete binary tree\n®   A complete binary tree down to a depth of d-1\n®   The nodes with depth d are as far to the left as possible\nSorting"
+  },
+  {
+    "concept_id": "concept_0003",
+    "concept_name": "Heap",
+    "concept_summary": "A heap is a type of binary tree where each node's value is greater than or equal to the values of its children, maintaining a complete binary tree structure. By removing the root key and maintaining the heap property, keys are extracted in nonincreasing order.",
     "source_title": "Heap",
-    "source_pages": [3],
-    "source_context": "An essentially complete binary tree such that... The values stored at the nodes come from an ordered set. The value stored at each node is greater than or equal to the values stored at its children. If we repeatedly remove the key stored at the root while maintaining the heap property, the keys will be removed in nonincreasing order."
+    "source_pages": [
+      3
+    ],
+    "source_context": "±    Heap\n®   An essentially complete binary tree such that\nHeap      ®   The values stored at the nodes come from an ordered set\nproperty   ®   The value stored at each node is greater than or equal to the\nvalues stored at its children\n®   If we repeatedly remove the key stored at the root while\nmaintaining the heap property, the keys will be removed in\nnonincreasing order\n®   The key at the root is replaced with the key stored at the bottom\nnode (the far-right leaf) è siftdown\nSorting"
   },
   {
-    "concept_id": "concept_h002",
-    "concept_name": "Siftdown을 이용한 heap property 복원",
-    "concept_summary": "루트의 키를 제거한 뒤 마지막 노드의 키를 루트로 옮기고, 자식과 비교하며 아래로 내려보내 heap property를 복원하는 과정.",
+    "concept_id": "concept_0004",
+    "concept_name": "Siftdown Process in Heap",
+    "concept_summary": "The siftdown process involves restoring the heap property by moving a new root down the heap until its position satisfies the heap property.",
     "source_title": "Restoring the heap property (siftdown)",
-    "source_pages": [4],
-    "source_context": "Remove key at root. Replace key at root with key stored at the bottom node (far right leaf) and deleting bottom node (decrement heap size). Sift new root down the heap until heap property restored. Compare key at root with larger of the keys of the root's children. If key at root is smaller, exchange keys. Repeat process down the tree until the key at node is not smaller than the children."
+    "source_pages": [
+      4
+    ],
+    "source_context": "±   Remove key at root\n±   Replace key at root with key stored at the bottom node (far right leaf) and\ndeleting bottom node (decrement heap size)\n±   Sift new root down the heap until heap property restored\n®   Compare key at root with larger of the keys of the root’s children\n®   If key at root is smaller, exchange keys\n±   Repeat process down the tree until the key at node is not smaller than the\nlarger of the children\nSorting"
   },
   {
-    "concept_id": "concept_h003",
-    "concept_name": "Radix Sort의 동작 원리",
-    "concept_summary": "숫자를 10진수로 표현했을 때, 오른쪽 자릿수부터 왼쪽으로 자릿수별 분배(distribution)를 통해 정렬하는 방식.",
-    "source_title": "Radix Sort",
-    "source_pages": [7, 8],
-    "source_context": "Suppose that the keys are all nonnegative integers represented in base 10. Assume that they all have the same number of digits. Sorting by distribution while inspecting the digits from right to left."
+    "concept_id": "concept_0010",
+    "concept_name": "Computational Complexity",
+    "concept_summary": "Computational complexity studies the efficiency of algorithms in solving a problem and establishes lower bounds for algorithm performance.",
+    "source_title": "Computational Complexity",
+    "source_pages": [
+      11
+    ],
+    "source_context": "±   Study of all possible algorithms that solve a given problem\n±   Determine a lower bound on efficiency of all algorithms for a given\nproblem\n±   Problem analysis as opposed to algorithm analysis\nSorting"
   },
   {
-    "concept_id": "concept_h004",
-    "concept_name": "순열의 역전(inversion) 개념",
-    "concept_summary": "정렬되지 않은 순열에서 i<j이면서 값의 크기가 뒤바뀐 쌍(i,j)을 역전이라 하며, 비교 기반 정렬의 하한 증명에 사용됨.",
+    "concept_id": "concept_0011",
+    "concept_name": "Sorting",
+    "concept_summary": "Sorting is the process of arranging records according to a key field, where comparison-based algorithms can determine the order by comparing keys.",
+    "source_title": "Sort",
+    "source_pages": [
+      12
+    ],
+    "source_context": "±   Re-arrange records according to a key field\n±   Algorithms that sort by comparison of keys can compare 2 keys to\ndetermine which is larger and can copy keys\n±   Cannot do other operations on them\nSorting"
+  },
+  {
+    "concept_id": "concept_0014",
+    "concept_name": "Worst-case Time Complexity of Insertion Sort",
+    "concept_summary": "The worst-case time complexity of the insertion sort algorithm occurs when the keys are initially in non-increasing order, leading to at most θ(n^2) comparisons.",
+    "source_title": "Worst-case Time Complexity Analysis of Number",
+    "source_pages": [
+      15
+    ],
+    "source_context": "of Comparisons of Keys\n±   Basic Operation: Comparison of S[j] with x\n±   Input size: n, the number of keys to be sorted\n±   Prior to loop execution, j set to i-1\n®   j decremented at each loop iteration\n®   j > 0 clause of the while expression becomes FALSE after i-1\niterations of the while loop\n±   While loop executes from i = 2 to n\n®   Total number of comparisons is at most\n= θ(!2)\n±   Worst-case behavior of Insertion sort\n®   If the keys are originally in non-increasing order in the array\nSorting"
+  },
+  {
+    "concept_id": "concept_0017",
+    "concept_name": "Inversion in Permutation",
+    "concept_summary": "Inversions in a permutation are pairs of elements where the earlier element is greater than the latter in the sequence.",
     "source_title": "Lower Bounds Sort by Comparison of Keys",
-    "source_pages": [18],
-    "source_context": "Sorting n distinct keys that come from any ordered set. Assume that the keys to be sorted are simply the positive integers. Permutation and Inversion. Example: [3, 2, 4, 1, 6, 5]. Inversions: (3,2), (3,1), (2,1), (6,5), (4,1)."
+    "source_pages": [
+      18
+    ],
+    "source_context": "±   Sorting n distinct keys that come from any ordered set\n®    Assume that the keys to be sorted are simply the positive\nintegers\n±   Permutation and Inversion\n±   Example: [3, 2, 4, 1, 6, 5]\n® Inversions: (3,2), (3,1), (2,1), (6,5), (4,1)\nSorting"
+  },
+  {
+    "concept_id": "concept_0019",
+    "concept_name": "Worst Case Inversions in Sorting",
+    "concept_summary": "The permutation [n, n-1, ..., 1] has the maximum number of inversions, n(n-1)/2, requiring n(n-1)/2 comparisons to sort in the worst case.",
+    "source_title": "Proof of Theorem 7.1 in the worst case",
+    "source_pages": [
+      20
+    ],
+    "source_context": "±   Show there is a permutation with n(n-1)/2 inversions\n±   At most one inversion is removed with each comparison è n(n-1)/2\ncomparisons\n±   Show [n, n-1, n-2, . . . , 3, 2, 1] is such a permutation\n®   n-1 inversions with n\n®   n-2 inversions with n-1\n…\n®   1 inversion with 2\nè (n-1) + (n-2) + … + 1 = n(n-1)/2 inversions\nSorting"
+  },
+  {
+    "concept_id": "concept_0021",
+    "concept_name": "Merge Sort Algorithm",
+    "concept_summary": "Merge Sort is a divide-and-conquer algorithm that divides the input array into smaller subarrays, sorts them, and then merges them back together, removing inversions and using extra space.",
+    "source_title": "Merge sort",
+    "source_pages": [
+      22
+    ],
+    "source_context": "±   Input in reverse order: S = [4,3,2,1]\n±   3 and 1 are compared and 1 placed in output array\n®   Inversions (3,1) and (4,1) removed\n±   3 and 2 are compared and 2 placed in output array\n®   Inversions (3,2) and (4,2) removed\n±   Extra space usage is θ(n)\nSorting"
+  },
+  {
+    "concept_id": "concept_0022",
+    "concept_name": "Time Complexity of Merge Sort Assignments",
+    "concept_summary": "The slide explains the time complexity of assignments in the Merge sort algorithm, specifically stating that both comparisons followed by record assignments and copy operations each contribute n∙lg n assignments, resulting in 2n∙lg n.",
+    "source_title": "Every-case time complexity of the number of",
+    "source_pages": [
+      23
+    ],
+    "source_context": "assignments of records done by Merge sort\n±   Every comparison in Merge is followed by a record assignment, so\nwe have » n∙lg n assignments in the Merge part of the algorithm\n±   Add the copy operations, which are also » n∙lg n, because the\ndivision tree is lg n levels deep\nè 2n∙lg n\nSorting"
+  },
+  {
+    "concept_id": "concept_0023",
+    "concept_name": "Time Complexity of Merge Sort",
+    "concept_summary": "The time complexity of Merge Sort in all cases (best, average, and worst) is O(n log n) due to the divide and conquer method it utilizes to sort elements.",
+    "source_title": "Improvements to Merge sort",
+    "source_pages": [
+      24
+    ],
+    "source_context": "±   The every-case time complexity of the number of assignments of\nrecords è n∙lg n\nSorting"
+  },
+  {
+    "concept_id": "concept_0028",
+    "concept_name": "Interpolation Search",
+    "concept_summary": "Interpolation Search is a search algorithm that assumes keys are evenly distributed and checks a position based on a calculated guess rather than the middle element, offering an average-case time complexity of log(log n), which is better than binary search.",
+    "source_title": "Interpolation Search",
+    "source_pages": [
+      30,
+      31
+    ],
+    "source_context": "±   We can use other information in our search\n®   e.g. Assume that the keys are close to being evenly distributed\nbetween the first one and the last one.\n®   Instead of checking whether x equals the middle key, we can\ncheck whether x equals the key that is located about where we\nwould expect to find x è Interpolation Search\nMore Computational Complexity:                    5\nThe Searching Problems\n§ The average-case time complexity = log(log 𝑛)\n§ Better than Binary Search\n§ The worst-case is similar to a sequential search\nMore Computational Complexity:                     6\nThe Searching Problems"
+  },
+  {
+    "concept_id": "concept_0029",
+    "concept_name": "Robust Interpolation Search Complexity",
+    "concept_summary": "Interpolation search is a search algorithm that has an average-case time complexity of Θ(log(log n)) under the assumption that keys are uniformly distributed, but its worst-case time complexity is Θ(log n), which is worse than that of binary search.",
+    "source_title": "Robust Interpolation Search",
+    "source_pages": [
+      32
+    ],
+    "source_context": "±   The worst case happens when mid sets to low repeatedly\n±   Under the assumptions that the keys are uniformly distributed,\n®   The average-case time complexity is Θ(log(log 𝑛))\n®   The worst-case time complexity is Θ( log 𝑛)! (still worse than\nBinary Search)\nMore Computational Complexity:                   7\nThe Searching Problems"
+  },
+  {
+    "concept_id": "concept_0030",
+    "concept_name": "3-2 Tree Properties",
+    "concept_summary": "A 3-2 tree is a type of B-tree where each node contains one or two keys; if a node contains one key, it has two children, and if it contains two keys, it has three children, and all leaves are at the same level.",
+    "source_title": "B-trees",
+    "source_pages": [
+      33,
+      34
+    ],
+    "source_context": "±   A 3-2 tree (the simplest version of B-trees) meets the following prop\nerties\n®   Each node contains one or two keys\n®   If a nonleaf contains one key, it has two children, whereas if it\ncontains two keys, it has three children\n®   The keys in the left subtree of a given node are less than or\nequal to the key stored at that node\n®   The keys in the right subtree of a given node are greater than\nor equal to the key stored at that node\n®   If a node contains two keys, the keys in the middle subtree of\nthe node are greater than or equal to the left key and less than\nor equal to the right key\n®   All leaves are at the same level\nMore Computational Complexity:                      8\nThe Searching Problems\nMore Computational Complexity:   9\nThe Searching Problems"
+  },
+  {
+    "concept_id": "concept_0032",
+    "concept_name": "Traveling Salesperson Problem (TSP)",
+    "concept_summary": "The Traveling Salesperson Problem is a classic NP-Complete problem that involves finding the shortest possible route visiting a set of points and returning to the origin point. No algorithm has been found with better than exponential time complexity in the worst case.",
+    "source_title": "Traveling Salesperson Problem",
+    "source_pages": [
+      36
+    ],
+    "source_context": "±   No algorithm has ever been developed with a worst-case time\ncomplexity better than exponential\n±   It has never been proven that such an algorithm is not possible\n±   NP-Complete\nNP-Complete Problems"
+  },
+  {
+    "concept_id": "concept_0033",
+    "concept_name": "Intractability in Computer Science",
+    "concept_summary": "Intractability refers to problems that are difficult for computers to solve efficiently, often lacking identified efficient algorithms, and frequently involving exponential algorithms which are impractical for larger inputs.",
+    "source_title": "Intractability",
+    "source_pages": [
+      37
+    ],
+    "source_context": "±   Dictionary Definition of intractable: “difficult to treat or work.”\n±   Computer Science: problem is intractable if a computer has\ndifficulty solving it\n®   No efficient algorithms have been identified\n®   Not proved that the problem requires a lot of time\nÆ   Many optimization problems are of this nature\n±   Exponential algorithms are useless except for very small inputs\nNP-Complete Problems"
+  },
+  {
+    "concept_id": "concept_0034",
+    "concept_name": "Tractable Problems",
+    "concept_summary": "A problem is considered tractable if there exists an algorithm that can solve it with a polynomial-bound time complexity as a function of its input size.",
+    "source_title": "Tractable",
+    "source_pages": [
+      38
+    ],
+    "source_context": "±   A problem is tractable if there exists a polynomial-bound algorithm\nthat solves it.\n±   Worst-case growth rate can be bounded by a polynomial\n±   Function of its input size\n±   ! \" = $% \"& + ⋯ + $) \") + $* where k is a constant\n±   ! \" ∈ , \"&\n±   \"log \" not a polynomial\n®   \"log \" < \"1 bound by a polynomial\nNP-Complete Problems"
+  },
+  {
+    "concept_id": "concept_0035",
+    "concept_name": "Intractable Problem",
+    "concept_summary": "In computer science, a problem is considered intractable if it cannot be solved by an algorithm with a polynomial time complexity, making it difficult or impossible to compute efficiently.",
+    "source_title": "Intractable",
+    "source_pages": [
+      39
+    ],
+    "source_context": "±   “Difficult to treat or work”\n±   A problem in Computer Science is intractable if a computer has\ndifficulty solving it\n±   A problem is intractable if it is not tractable\n±   Any algorithm with a growth rate not bounded by a polynomial\n±   !\", ! .%&' , \"()* ' , \"!,\n±   Property of the problem (not the algorithm)\nNP-Complete Problems"
+  },
+  {
+    "concept_id": "concept_0036",
+    "concept_name": "Categories of Computational Problems",
+    "concept_summary": "Computational problems are categorized into three groups: those with polynomial-time algorithms, those proven to be intractable, and those without proven intractability but lack polynomial-time solutions.",
+    "source_title": "Three General Categories of Problems",
+    "source_pages": [
+      40
+    ],
+    "source_context": "1.   Problems for which polynomial-time algorithms have been found\n2.   Problems that have been proven to be intractable\n3.   Problems that have not been proven to be intractable, but for which\npolynomial-time algorithms have never been found\n®   e.g. 0-1 Knapsack problem, Traveling Salesperson problem,\nand the Sum-of-Subsets problem\nNP-Complete Problems"
+  },
+  {
+    "concept_id": "concept_0037",
+    "concept_name": "Polynomial-time Algorithms",
+    "concept_summary": "Polynomial-time algorithms are those whose time complexity is represented by a polynomial expression such as O(n), O(n log n), or O(n^k). They are tractable and efficient for many computational problems.",
+    "source_title": "Polynomial-time Algorithms",
+    "source_pages": [
+      41
+    ],
+    "source_context": "±   ! \" log \" for sorting\n±   ! log \" for searching\n±   ! \"& for Floyd’s algorithm for shortest paths\n±   Algorithms with the following worst-case time complexities are all\npolynomial time\n®   2\", 3\"& + 4\", 5\" + \"-. , \"log \"\nNP-Complete Problems"
   }
 ]
