@@ -9,8 +9,12 @@
         3
       ],
       "source_context": "An essentially complete binary tree such that... The values stored at the nodes come from an ordered set. The value stored at each node is greater than or equal to the values stored at its children. If we repeatedly remove the key stored at the root while maintaining the heap property, the keys will be removed in nonincreasing order.",
-      "mapped_category": "TRUE_FALSE",
-      "mapping_reason": "The text provides a concise definition of a heap and its properties, focusing on factual information."
+      "mapped_category": "MULTIPLE_CHOICE",
+      "mapping_reason": "Heap의 정의와 heap property는 구체적인 값의 비교를 포함하므로 계산형 문제로 적합하다. 또한 여러 특징을 비교할 수 있어 선택형에 적합하다. 기본적으로 짧은 정의를 포괄하므로 진위형도 가능하다. 그러나 인과관계 설명이 요구되지 않으므로 서술형 적합도는 다소 낮다.",
+      "confidence": "low",
+      "difficulty": "보통",
+      "difficulty_reason": "자료 구조의 기본 정의를 이해하는 것은 비교적 간단하지만, 이를 적용하여 문제풀이에 활용하는 것은 중간 난이도이다. 복잡한 문제는 잘 출제되지 않으므로 어려운 문제 해결에는 적합하지 않다.",
+      "runner_up_category": "CALCULATION"
     },
     {
       "concept_id": "concept_h002",
@@ -22,7 +26,10 @@
       ],
       "source_context": "Remove key at root. Replace key at root with key stored at the bottom node (far right leaf) and deleting bottom node (decrement heap size). Sift new root down the heap until heap property restored. Compare key at root with larger of the keys of the root's children. If key at root is smaller, exchange keys. Repeat process down the tree until the key at node is not smaller than the children.",
       "mapped_category": "DESCRIPTIVE",
-      "mapping_reason": "The text describes a process to restore a heap's properties, which involves multiple steps and sequence of operations, suitable for a descriptive explanation."
+      "mapping_reason": "실제 계산을 요구하기보다는 과정을 설명하는 데 중점을 두기 때문에 계산형으로 부적절하다. 그러나 여러 과정과 선택 요소를 포함하므로 선택형에 적합하다. siftdown 과정의 메커니즘을 설명해야 하므로 서술형에 매우 적합하다.",
+      "confidence": "high",
+      "difficulty": "보통",
+      "difficulty_reason": "과정을 이해하고 적용하는 것이 요구되며, 이는 중간 난이도에 속한다. 여러 예외를 고려해야 하므로 어려운 문제에도 활용 가능하지만 기본 과정을 이해하는 것은 쉬운 편은 아니다."
     },
     {
       "concept_id": "concept_h003",
@@ -34,8 +41,12 @@
         8
       ],
       "source_context": "Suppose that the keys are all nonnegative integers represented in base 10. Assume that they all have the same number of digits. Sorting by distribution while inspecting the digits from right to left.",
-      "mapped_category": "DESCRIPTIVE",
-      "mapping_reason": "Explaining radix sort's mechanism requires detailing its systematic digit-by-digit sorting process, involving several steps."
+      "mapped_category": "MULTIPLE_CHOICE",
+      "mapping_reason": "Radix Sort는 구체적인 절차와 수치적 예시가 있다면 계산형 문제로 적합하다. 자릿수별 정렬 과정을 묻는 선택형 문제로도 적합하다. 진위형 문제는 상대적으로 부적합하며, 정렬 원리 설명이 필요하므로 서술형에 적합하다.",
+      "confidence": "low",
+      "difficulty": "쉬움",
+      "difficulty_reason": "기본 원리를 파악하는 것은 중간 난이도이며, 이를 적용하여 문제 해결에 활용하는 것은 추가적인 이해가 필요하다. 예외 처리는 어려운 편이며 초급 문제는 상대적으로 적다.",
+      "runner_up_category": "DESCRIPTIVE"
     },
     {
       "concept_id": "concept_h004",
@@ -46,8 +57,12 @@
         18
       ],
       "source_context": "Sorting n distinct keys that come from any ordered set. Assume that the keys to be sorted are simply the positive integers. Permutation and Inversion. Example: [3, 2, 4, 1, 6, 5]. Inversions: (3,2), (3,1), (2,1), (6,5), (4,1).",
-      "mapped_category": "MULTIPLE_CHOICE",
-      "mapping_reason": "The concept involves understanding permutations and inversions, providing examples and potentially comparing terms like inversion in different contexts."
+      "mapped_category": "TRUE_FALSE",
+      "mapping_reason": "역전 개념은 수치적 예시가 추가됨으로써 계산형으로 적합하다. 다양한 경우의 비교가 가능하나, 설명보다 간단한 계산이 요구되므로 선택형과 진위형에서 중간 정도 평가를 받는다. 설명형으로도 사용 가능하다.",
+      "confidence": "low",
+      "difficulty": "어려움",
+      "difficulty_reason": "기본 원리를 기억하는 것은 중급 난이도 수준이지만, 이를 통해 문제를 해결하거나 역전을 유도하는 문제는 고난이도이다. 간단한 예시는 초급 문제로 출제될 수 있다.",
+      "runner_up_category": "CALCULATION"
     }
   ]
 }

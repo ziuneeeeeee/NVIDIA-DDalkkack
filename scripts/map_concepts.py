@@ -36,11 +36,23 @@ def main() -> None:
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump({"mapped_concepts": mapped}, f, ensure_ascii=False, indent=2)
 
-    counts = Counter(c["mapped_category"] for c in mapped)
     total = len(mapped)
+    category_counts = Counter(c["mapped_category"] for c in mapped)
+    difficulty_counts = Counter(c["difficulty"] for c in mapped)
+    low_confidence = [c for c in mapped if c.get("confidence") == "low"]
+
     print(f"총 {total}개 개념 매핑 완료 -> {args.output}")
-    for category, count in counts.most_common():
+    print("[유형 분포]")
+    for category, count in category_counts.most_common():
         print(f"  {category}: {count}개 ({count / total:.0%})")
+    print("[난이도 분포]")
+    for difficulty in ("쉬움", "보통", "어려움"):
+        count = difficulty_counts.get(difficulty, 0)
+        print(f"  {difficulty}: {count}개 ({count / total:.0%})")
+    if low_confidence:
+        print(f"[경계 케이스: 확신도 낮음 {len(low_confidence)}개]")
+        for c in low_confidence:
+            print(f"  {c['concept_id']} ({c['concept_name']}): {c['mapped_category']} (차점: {c['runner_up_category']})")
 
 
 if __name__ == "__main__":
