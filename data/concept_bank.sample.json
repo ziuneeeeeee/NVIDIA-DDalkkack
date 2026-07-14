@@ -1,0 +1,34 @@
+[
+  {
+    "concept_id": "concept_h001",
+    "concept_name": "Heap의 정의와 heap property",
+    "concept_summary": "완전 이진 트리이면서, 각 노드의 값이 자식 노드의 값보다 크거나 같은 속성(heap property)을 만족하는 자료구조.",
+    "source_title": "Heap",
+    "source_pages": [3],
+    "source_context": "An essentially complete binary tree such that... The values stored at the nodes come from an ordered set. The value stored at each node is greater than or equal to the values stored at its children. If we repeatedly remove the key stored at the root while maintaining the heap property, the keys will be removed in nonincreasing order."
+  },
+  {
+    "concept_id": "concept_h002",
+    "concept_name": "Siftdown을 이용한 heap property 복원",
+    "concept_summary": "루트의 키를 제거한 뒤 마지막 노드의 키를 루트로 옮기고, 자식과 비교하며 아래로 내려보내 heap property를 복원하는 과정.",
+    "source_title": "Restoring the heap property (siftdown)",
+    "source_pages": [4],
+    "source_context": "Remove key at root. Replace key at root with key stored at the bottom node (far right leaf) and deleting bottom node (decrement heap size). Sift new root down the heap until heap property restored. Compare key at root with larger of the keys of the root's children. If key at root is smaller, exchange keys. Repeat process down the tree until the key at node is not smaller than the children."
+  },
+  {
+    "concept_id": "concept_h003",
+    "concept_name": "Radix Sort의 동작 원리",
+    "concept_summary": "숫자를 10진수로 표현했을 때, 오른쪽 자릿수부터 왼쪽으로 자릿수별 분배(distribution)를 통해 정렬하는 방식.",
+    "source_title": "Radix Sort",
+    "source_pages": [7, 8],
+    "source_context": "Suppose that the keys are all nonnegative integers represented in base 10. Assume that they all have the same number of digits. Sorting by distribution while inspecting the digits from right to left."
+  },
+  {
+    "concept_id": "concept_h004",
+    "concept_name": "순열의 역전(inversion) 개념",
+    "concept_summary": "정렬되지 않은 순열에서 i<j이면서 값의 크기가 뒤바뀐 쌍(i,j)을 역전이라 하며, 비교 기반 정렬의 하한 증명에 사용됨.",
+    "source_title": "Lower Bounds Sort by Comparison of Keys",
+    "source_pages": [18],
+    "source_context": "Sorting n distinct keys that come from any ordered set. Assume that the keys to be sorted are simply the positive integers. Permutation and Inversion. Example: [3, 2, 4, 1, 6, 5]. Inversions: (3,2), (3,1), (2,1), (6,5), (4,1)."
+  }
+]
