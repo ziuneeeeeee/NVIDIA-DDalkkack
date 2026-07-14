@@ -30,8 +30,10 @@ def build_generation_graph() -> StateGraph:
     
     g.add_edge("retrieve", "generate")
     g.add_edge("generate", "verify")
-    g.add_edge("verify", "judge")
-    g.add_edge("judge", "conclude")
+    g.add_edge("generate", "judge")
+    # 검증과 난이도 평가는 동일한 초안을 독립적으로 평가한다. 두 평가가
+    # 모두 끝난 뒤에만 최종 판정이 실행되도록 합류 지점을 명시한다.
+    g.add_edge(["verify", "judge"], "conclude")
     
     g.add_conditional_edges(
         "conclude",
