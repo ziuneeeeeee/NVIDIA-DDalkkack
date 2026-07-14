@@ -31,7 +31,7 @@ CHROMA_PATH     = "./chroma_db"
 BM25_PATH       = "./bm25_index.pkl"
 COLLECTION_NAME = "lecture_notes"
 EMBEDDING_MODEL = "text-embedding-3-small"
-TOP_K           = 5   # BM25 / 벡터 각각 상위 K개
+TOP_K           = 8   # BM25 / 벡터 각각 상위 K개
 TOP_N           = 3   # 재순위화 후 최종 N개
 
 # ── 지연 로딩 (첫 retrieve 호출 시 1회만 초기화) ─────────────────
@@ -66,6 +66,25 @@ def _load_resources() -> dict:
     }
     print("[retrieve] RAG 리소스 초기화 완료 ✅")
     return _resources
+
+
+def get_topic_overview(topic_range: str, top_k: int = 15) -> str:
+    """
+    특정 범위(topic_range)에 대한 강의자료 개관을 BM25로 넓게 훑어 반환.
+    Orchestrator가 실제 자료에 근거해 개념을 뽑도록 근거 텍스트를 제공하는 용도.
+    """
+    try:
+        res = _load_resources()
+    except FileNotFoundError as e:
+        print(f"[retrieve] ⚠️  {e}")
+        return f"[인덱싱 필요] '{topic_range[:40]}...'에 관한 강의자료 내용."
+
+    bm25_scores = res["bm25"].get_scores(topic_range.split())
+    top_idx = sorted(
+        range(len(bm25_scores)), key=lambda i: bm25_scores[i], reverse=True
+    )[:top_k]
+    chunks = [res["corpus"][i] for i in top_idx]
+    return "\n\n---\n\n".join(chunks)
 
 
 def retrieve(state: dict) -> dict:
