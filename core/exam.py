@@ -4,6 +4,7 @@ import concurrent.futures
 
 from core.models import Problem, GradeResult
 from core.clients import get_openai_client
+from nodes.retrieve import get_topic_overview
 from main import run_generation, run_grading
 
 class MockExamResult(BaseModel):
@@ -17,12 +18,14 @@ class ConceptList(BaseModel):
 
 def orchestrate_exam_concepts(topic_range: str, num_questions: int) -> List[str]:
     """주어진 범위 내에서 중복되지 않는 N개의 세부 개념 추출 (Orchestrator)"""
+    reference_text = get_topic_overview(topic_range, top_k=15)
+
     client = get_openai_client()
     response = client.beta.chat.completions.parse(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "당신은 모의고사 출제 매니저입니다. 개념 중복을 방지하여 세부 주제를 선정해야 합니다. 출력은 반드시 한국어로 작성하세요."},
-            {"role": "user", "content": f"출제 범위: {topic_range}\n필요한 문제 수: {num_questions}개\n\n위 범위 내에서 서로 중복되지 않는 핵심 세부 개념 {num_questions}개를 추출하세요."}
+            {"role": "system", "content": "당신은 모의고사 출제 매니저입니다. 반드시 주어진 발췌문에 실제로 등장하는 개념만 선정하고, 개념 중복을 방지해야 합니다. 발췌문에 없는 개념은 절대로 만들어내지 마세요. 출력은 반드시 한국어로 작성하세요."},
+            {"role": "user", "content": f"발췌문:\n{reference_text}\n\n출제 범위: {topic_range}\n필요한 문제 수: {num_questions}개\n\n위 발췌문 내에서 서로 중복되지 않는 핵심 세부 개념 {num_questions}개를 추출하세요. 발췌문에 없는 개념은 만들지 마세요."}
         ],
         response_format=ConceptList,
     )

@@ -38,8 +38,13 @@ def generate_problem_node(state: GenerationState) -> dict:
 모든 문제는 **10점 만점**을 기준으로 출제되며, 문제 끝에 "(10점)"을 표기해 주세요.
 객관식이나 단답형인 경우 'answer' 필드에 정답을 반드시 기입하고, 서술형이나 코딩형인 경우 'model_answer' 필드에 모범 답안을 작성하세요.
 만약 이전 피드백이 있다면, 피드백을 반영하여 수정하세요.
-이전 검증 피드백: {state.get('validation_feedback', '없음')}
-이전 난이도 피드백: {state.get('difficulty_feedback', '없음')}
+이전 검증 피드백 이력:
+{chr(10).join(state.get('validation_history', [])) or '없음'}
+
+이전 난이도 피드백 이력:
+{chr(10).join(state.get('difficulty_history', [])) or '없음'}
+
+위 이력에서 지적된 문제를 모두 피해서 새로 작성하세요. 이전과 동일한 실수를 반복하지 마세요.
 """
     print(f"\n[Generation AI] '{state['concept']}' 개념 문제 초안 생성 중...")
     response = client.beta.chat.completions.parse(
@@ -77,7 +82,7 @@ def verify_problem_node(state: GenerationState) -> dict:
     res = response.choices[0].message.parsed
     feedback_str = ("✅ 통과: " if res.is_valid else "❌ 반려: ") + res.feedback
     print(f"  -> {feedback_str}")
-    return {"validation_feedback": feedback_str}
+    return {"validation_history": state.get("validation_history", []) + [feedback_str]}
 
 def judge_difficulty_node(state: GenerationState) -> dict:
     client = get_openai_client()
@@ -101,20 +106,27 @@ def judge_difficulty_node(state: GenerationState) -> dict:
     res = response.choices[0].message.parsed
     feedback_str = f"측정된 난이도: {res.estimated_difficulty}. {res.feedback}"
     print(f"  -> {feedback_str}")
-    return {"difficulty_feedback": feedback_str}
+    return {"difficulty_history": state.get("difficulty_history", []) + [feedback_str]}
 
 def conclude_problem_node(state: GenerationState) -> dict:
     target_diff = state["target_difficulty"]
-    validation = state["validation_feedback"]
-    difficulty = state["difficulty_feedback"]
-    
+    validation = state["validation_history"][-1]   # 최신 피드백
+    difficulty = state["difficulty_history"][-1]
+
     client = get_openai_client()
     prompt = f"""
+강의자료 원문 (Context):
+{state['context']}
+
+생성된 문제:
+{json.dumps(state['draft_problem'], ensure_ascii=False, indent=2)}
+
 목표 난이도: {target_diff}
 검증 AI 피드백: {validation}
 난이도 AI 평가: {difficulty}
 
-위 피드백을 종합하여 문제가 출제 가능한 상태인지 최종 판정하세요.
+당신은 위 두 AI의 판정에만 의존하지 말고, 강의자료 원문과 문제를 직접 대조하여
+사실관계 오류가 있는지도 스스로 확인한 뒤 최종 판정하세요.
 문제가 오류 없이 명확하며, 측정된 난이도가 목표 난이도와 일치하면 승인(is_accepted=True) 하세요.
 """
     print("[Conclusion AI] 최종 판정 중...")

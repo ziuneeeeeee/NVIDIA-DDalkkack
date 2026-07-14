@@ -54,9 +54,9 @@ class GenerationState(TypedDict):
     context: str
 
     draft_problem: Optional[dict]
-    validation_feedback: str
-    difficulty_feedback: str
-    
+    validation_history: list[str]     # 누적
+    difficulty_history: list[str]     # 누적
+
     is_accepted: bool
     final_problem: Optional[Problem]
     retry_count: int
@@ -68,8 +68,8 @@ def initial_generation_state(concept: str, target_difficulty: str, context: str)
         target_difficulty=target_difficulty,
         context=context,
         draft_problem=None,
-        validation_feedback="",
-        difficulty_feedback="",
+        validation_history=[],
+        difficulty_history=[],
         is_accepted=False,
         final_problem=None,
         retry_count=0,
