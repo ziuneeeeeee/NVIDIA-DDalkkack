@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 from core.models import Problem
@@ -57,7 +57,7 @@ from core.exam import generate_mock_exam, grade_mock_exam
 
 class MockExamGenerateRequest(BaseModel):
     topic_range: str
-    num_questions: int = 5
+    num_questions: int = Field(default=5, ge=2, le=20)
     target_difficulty: str = "중"
 
 class MockExamGradeRequest(BaseModel):

@@ -268,6 +268,7 @@ export default function App() {
                 <option value={3}>3문제</option>
                 <option value={5}>5문제</option>
                 <option value={10}>10문제</option>
+                <option value={20}>20문제</option>
               </select>
               <select className="select-input" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
                 <option value="상">상</option>
