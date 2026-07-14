@@ -53,6 +53,7 @@ class GenerationState(TypedDict):
     target_difficulty: str
     context: str
 
+    question_type: str                # concept -> 유형 매핑 결과 (참거짓/객관식/단답형/서술형/코딩형)
     draft_problem: Optional[dict]
     validation_history: list[str]     # 누적
     difficulty_history: list[str]     # 누적
@@ -67,6 +68,7 @@ def initial_generation_state(concept: str, target_difficulty: str, context: str)
         concept=concept,
         target_difficulty=target_difficulty,
         context=context,
+        question_type="",
         draft_problem=None,
         validation_history=[],
         difficulty_history=[],

@@ -9,10 +9,14 @@ from core.clients import get_openai_client
 MODEL = "gpt-4o"
 
 class DraftProblem(BaseModel):
-    type: Literal["객관식", "단답형", "서술형", "코딩형"]
+    type: Literal["참거짓", "객관식", "단답형", "서술형", "코딩형"]
     question: str
     answer: str | None = None
     model_answer: str | None = None
+
+class TypeClassification(BaseModel):
+    question_type: Literal["참거짓", "객관식", "단답형", "서술형", "코딩형"]
+    reasoning: str
 
 class VerificationResult(BaseModel):
     is_valid: bool
@@ -26,17 +30,61 @@ class ConclusionResult(BaseModel):
     is_accepted: bool
     final_feedback: str
 
+TYPE_MAPPING_GUIDE = """
+[참거짓] 대상: 단일 정의, 명확한 수치, 절대적인 인과관계, 포함 관계가 뚜렷한 개념.
+예: OS의 '인터럽트 정의', 네트워크의 'OSI 7계층 각각의 명칭'.
+
+[객관식] (4지선다) 대상: 하나의 대주제 아래에 여러 개의 하위 종류나 특징이 나열되는 개념
+(비교/대조군이 확실한 것).
+예: CPU 스케줄링 알고리즘들의 장단점 비교, 데이터베이스 인덱스의 종류별 특징.
+
+[서술형] (단답/주관식) 대상: 메커니즘의 작동 과정 기술, 예외 상황에 대한 대처법,
+특정 설계 조건을 만족해야 하는 복합 이론.
+예: 데드락(Deadlock)의 4가지 발생 조건과 해결 방안 서술.
+
+[코딩형] 위 세 기준에 해당하지 않고, 개념이 코드 작성/구현을 직접 요구할 때만 선택.
+[단답형] 서술형과 대상은 유사하나 한두 단어/짧은 문장으로 답이 확정되는 경우에 선택.
+"""
+
+def classify_question_type_node(state: GenerationState) -> dict:
+    """강의자료에서 추출된 개념을 위 매핑 가이드라인에 따라 문제 유형으로 분류한다."""
+    client = get_openai_client()
+    prompt = f"""
+개념: {state['concept']}
+
+강의자료 내용 (Context):
+{state['context']}
+
+아래 분류 기준에 따라 이 개념에 가장 적합한 문제 유형을 하나만 선택하세요.
+{TYPE_MAPPING_GUIDE}
+위 개념이 어느 유형에 가장 부합하는지 판단하고, 판단 근거를 간단히 설명하세요.
+"""
+    print(f"\n[Type Classification AI] '{state['concept']}' 개념 유형 분류 중...")
+    response = client.beta.chat.completions.parse(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "당신은 개념을 시험 문제 유형으로 분류하는 출제 설계 전문가입니다."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format=TypeClassification,
+    )
+    res = response.choices[0].message.parsed
+    print(f"  -> {res.question_type} ({res.reasoning})")
+    return {"question_type": res.question_type}
+
 def generate_problem_node(state: GenerationState) -> dict:
     client = get_openai_client()
+    question_type = state.get("question_type") or "객관식"
     prompt = f"""
 강의자료 내용 (Context):
 {state['context']}
 
 위 강의자료를 바탕으로 '{state['concept']}' 개념에 대한 문제를 하나 생성하세요.
 목표 난이도는 '{state['target_difficulty']}' 입니다.
-문제 유형은 객관식, 단답형, 서술형, 코딩형 중 하나여야 합니다.
+문제 유형은 반드시 '{question_type}'이어야 합니다. (참거짓/객관식/단답형/서술형/코딩형 중 다른 유형으로 바꾸지 마세요.)
 모든 문제는 **10점 만점**을 기준으로 출제되며, 문제 끝에 "(10점)"을 표기해 주세요.
-객관식이나 단답형인 경우 'answer' 필드에 정답을 반드시 기입하고, 서술형이나 코딩형인 경우 'model_answer' 필드에 모범 답안을 작성하세요.
+참거짓/객관식/단답형인 경우 'answer' 필드에 정답을 반드시 기입하고, 서술형이나 코딩형인 경우 'model_answer' 필드에 모범 답안을 작성하세요.
+참거짓 유형은 'answer' 필드에 "참" 또는 "거짓"만 기입하세요.
 만약 이전 피드백이 있다면, 피드백을 반영하여 수정하세요.
 이전 검증 피드백 이력:
 {chr(10).join(state.get('validation_history', [])) or '없음'}
@@ -46,7 +94,7 @@ def generate_problem_node(state: GenerationState) -> dict:
 
 위 이력에서 지적된 문제를 모두 피해서 새로 작성하세요. 이전과 동일한 실수를 반복하지 마세요.
 """
-    print(f"\n[Generation AI] '{state['concept']}' 개념 문제 초안 생성 중...")
+    print(f"\n[Generation AI] '{state['concept']}' 개념 문제 초안 생성 중... (유형: {question_type})")
     response = client.beta.chat.completions.parse(
         model=MODEL,
         messages=[
@@ -56,7 +104,9 @@ def generate_problem_node(state: GenerationState) -> dict:
         response_format=DraftProblem,
     )
     draft = response.choices[0].message.parsed
-    return {"draft_problem": draft.model_dump(), "retry_count": state.get("retry_count", 0) + 1}
+    draft_dict = draft.model_dump()
+    draft_dict["type"] = question_type   # 분류 노드 판정을 최종 근거로 고정
+    return {"draft_problem": draft_dict, "retry_count": state.get("retry_count", 0) + 1}
 
 def verify_problem_node(state: GenerationState) -> dict:
     client = get_openai_client()

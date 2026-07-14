@@ -14,7 +14,7 @@ from nodes.diagnose import diagnose
 
 def route_by_type(state: GradingState) -> str:
     t = state["problem"].type
-    if t in ("객관식", "단답형"):
+    if t in ("참거짓", "객관식", "단답형"):
         return "objective"
     elif t == "서술형":
         return "essay"
@@ -31,7 +31,7 @@ def build_grading_graph() -> StateGraph:
     g.add_node("get_rubric", get_or_create_rubric)
 
     # 채점 노드들
-    g.add_node("grade_objective", grade_objective)          # 객관식/단답형
+    g.add_node("grade_objective", grade_objective)          # 참거짓/객관식/단답형
     g.add_node("critique_strict", critique_strict)          # 서술형 - 근거중심
     g.add_node("critique_lenient", critique_lenient)        # 서술형 - 의미이해
     g.add_node("critique_keyword", critique_keyword)        # 서술형 - 핵심키워드

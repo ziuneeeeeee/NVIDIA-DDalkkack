@@ -10,7 +10,7 @@ def _normalize(text: str) -> str:
     return text
 
 def grade_objective(state: GradingState) -> dict:
-    """객관식/단답형: 문자열 정규화 비교. LLM 불필요."""
+    """참거짓/객관식/단답형: 문자열 정규화 비교. LLM 불필요."""
     correct = state["problem"].answer or ""
     student = state["student_answer"]
     is_correct = _normalize(correct) == _normalize(student)

@@ -52,11 +52,11 @@ class GradeRequest(BaseModel):
     MD 10: async def grade_answer(req: GradeRequest) 기반
 
     problem_id   : 문제 고유 ID (루브릭 캐싱 키로 사용)
-    problem_type : "객관식" | "단답형" | "서술형" | "코딩형"
+    problem_type : "참거짓" | "객관식" | "단답형" | "서술형" | "코딩형"
     question     : 문제 텍스트
     student_answer: 학생 답안
     model_answer : 서술형 모범답안 (선택, 있으면 루브릭 생성에 활용)
-    answer       : 객관식/단답형 정답 (선택)
+    answer       : 참거짓/객관식/단답형 정답 (선택)
     """
     problem_id: str
     problem_type: str

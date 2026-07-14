@@ -1,6 +1,7 @@
 from langgraph.graph import StateGraph, END
 from core.state import GenerationState
 from nodes.generation import (
+    classify_question_type_node,
     generate_problem_node,
     verify_problem_node,
     judge_difficulty_node,
@@ -21,14 +22,16 @@ def build_generation_graph() -> StateGraph:
     
     from nodes.retrieve import retrieve
     g.add_node("retrieve", retrieve)
+    g.add_node("classify_type", classify_question_type_node)
     g.add_node("generate", generate_problem_node)
     g.add_node("verify", verify_problem_node)
     g.add_node("judge", judge_difficulty_node)
     g.add_node("conclude", conclude_problem_node)
-    
+
     g.set_entry_point("retrieve")
-    
-    g.add_edge("retrieve", "generate")
+
+    g.add_edge("retrieve", "classify_type")
+    g.add_edge("classify_type", "generate")
     g.add_edge("generate", "verify")
     g.add_edge("generate", "judge")
     # 검증과 난이도 평가는 동일한 초안을 독립적으로 평가한다. 두 평가가

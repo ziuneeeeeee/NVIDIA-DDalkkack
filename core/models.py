@@ -10,7 +10,7 @@ class RubricCriterion(BaseModel):
 
 class Problem(BaseModel):
     problem_id: str
-    type: Literal["객관식", "단답형", "서술형", "코딩형"]
+    type: Literal["참거짓", "객관식", "단답형", "서술형", "코딩형"]
     question: str
     answer: Optional[str] = None
     model_answer: Optional[str] = None
