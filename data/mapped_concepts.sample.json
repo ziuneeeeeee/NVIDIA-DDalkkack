@@ -9,11 +9,12 @@
         3
       ],
       "source_context": "An essentially complete binary tree such that... The values stored at the nodes come from an ordered set. The value stored at each node is greater than or equal to the values stored at its children. If we repeatedly remove the key stored at the root while maintaining the heap property, the keys will be removed in nonincreasing order.",
-      "mapped_category": "MULTIPLE_CHOICE",
-      "mapping_reason": "Heap의 정의와 heap property는 여러 개의 속성과 성질이 나열되어 있으며, 이는 비교 선택형 문항으로 적합하다. 또한, 짧은 설명으로 사실을 묻는 유형에도 적합하다. 특정 계산이 포함되어 있지 않으며, 작동 원리 역시 복합적이지 않다.",
+      "mapped_category": "TRUE_FALSE",
+      "mapping_reason": "Heap의 정의는 짧고 명확한 정의를 제공하므로 참/거짓 문제로 적합하다. 또한 다양한 속성을 설명할 수 있어 선택형에도 적합하다. 복잡한 인과관계나 계산이 필요 없으므로 서술형이나 계산형에는 부적합하다.",
       "confidence": "high",
       "difficulty": "쉬움",
-      "difficulty_reason": "Heap의 정의와 속성은 핵심 키워드와 정의를 이해하는 것으로 충분하므로 비교적 쉬운 편이다. 하지만 데이터 구조의 특성에 대한 이해도 확인할 수 있어 중간 난이도에도 적합하다."
+      "difficulty_reason": "Heap의 기본 정의에 해당하므로 복잡한 이해가 필요하지 않다. 따라서 주로 단순 암기나 기본 이해를 평가하기 위한 문제로 적합하다.",
+      "importance_score": 75
     },
     {
       "concept_id": "concept_h002",
@@ -24,11 +25,12 @@
         4
       ],
       "source_context": "Remove key at root. Replace key at root with key stored at the bottom node (far right leaf) and deleting bottom node (decrement heap size). Sift new root down the heap until heap property restored. Compare key at root with larger of the keys of the root's children. If key at root is smaller, exchange keys. Repeat process down the tree until the key at node is not smaller than the children.",
-      "mapped_category": "MULTIPLE_CHOICE",
-      "mapping_reason": "Siftdown을 통한 heap property 복원은 여러 단계의 비교와 교환 과정을 설명하는 복잡한 메커니즘이 포함되어 있어 설명형 문항에 적합하다. 각 단계의 비교 및 교환의 조건들이 나열되어 있어 다지 선다형 문항에도 잘 맞는다.",
+      "mapped_category": "DESCRIPTIVE",
+      "mapping_reason": "Heap property 복원 과정은 단계적인 설명이 필요하고 메커니즘을 이해해야 한다. 따라서 서술형으로 적합하다. 여러 선택지를 비교할 수 있는 선택형도 고려할 만하다.",
       "confidence": "high",
       "difficulty": "보통",
-      "difficulty_reason": "Siftdown의 과정은 다소 복잡하며, 이러한 메커니즘을 정확히 이해하는 데 중간 이상의 난이도가 필요하다. 그러나 직접적인 계산을 요구하지 않으므로 극히 어렵지는 않다."
+      "difficulty_reason": "과정의 메커니즘을 이해하고 적용할 수 있어야 하므로 중간 정도의 난이도가 적합하다. 복잡한 문제 해결이나 예외적 상황을 고려해야 한다면 높은 난이도도 가능하다.",
+      "importance_score": 65
     },
     {
       "concept_id": "concept_h003",
@@ -40,12 +42,12 @@
         8
       ],
       "source_context": "Suppose that the keys are all nonnegative integers represented in base 10. Assume that they all have the same number of digits. Sorting by distribution while inspecting the digits from right to left.",
-      "mapped_category": "TRUE_FALSE",
-      "mapping_reason": "Radix Sort의 동작 원리는 여러 단계의 분배와 정렬 과정을 설명해야 하기 때문에 설명형 문항에 적합하다. 서로 다른 자릿수에 따른 정렬 방식도 나열되어 비교형 문항으로 적합하다.",
-      "confidence": "low",
+      "mapped_category": "DESCRIPTIVE",
+      "mapping_reason": "Radix Sort의 동작 원리는 구체적인 절차를 요구하는 서술형 문제에 적합하다. 또한 여러 단계와 방법이 나열될 수 있어 선택형으로도 적합하다.",
+      "confidence": "high",
       "difficulty": "보통",
-      "difficulty_reason": "Radix Sort의 원리를 이해하는 것은 약간 복잡하고, 각 단계의 메커니즘에 대한 이해가 필수적이다. 그렇기에 중간 난이도로 평가되며, 높은 수준의 이해가 요구될 수도 있다.",
-      "runner_up_category": "DESCRIPTIVE"
+      "difficulty_reason": "각 자릿수를 처리하는 메커니즘 이해가 요구되므로 중간 난이도가 적절하다. 복합적으로 적용해야 한다면 높은 난이도가 될 수 있다.",
+      "importance_score": 70
     },
     {
       "concept_id": "concept_h004",
@@ -56,11 +58,13 @@
         18
       ],
       "source_context": "Sorting n distinct keys that come from any ordered set. Assume that the keys to be sorted are simply the positive integers. Permutation and Inversion. Example: [3, 2, 4, 1, 6, 5]. Inversions: (3,2), (3,1), (2,1), (6,5), (4,1).",
-      "mapped_category": "CALCULATION",
-      "mapping_reason": "순열의 역전 개념은 구체적인 예시를 통해 설명되어 있으며, 계산형 문항으로 적합하다. 다양한 예시와 역전 쌍을 다루기 때문에 선택형 문항에도 적합한다.",
-      "confidence": "high",
-      "difficulty": "어려움",
-      "difficulty_reason": "역전 개념은 비교적 복잡한 문제 해결에 사용되기 때문에 고난이도로 평가된다. 특히 여러 개념이 복합적으로 사용되며, 특정 상황에 대한 예외 처리가 필요할 수 있다."
+      "mapped_category": "MULTIPLE_CHOICE",
+      "mapping_reason": "순열의 역전 개념은 다수의 쌍을 나열하고 비교할 수 있어 선택형 문제에 적합하다. 또한 정의를 확인할 수 있는 참/거짓 문제나 설명형 문제에도 활용 가능하다.",
+      "confidence": "low",
+      "difficulty": "보통",
+      "difficulty_reason": "역전을 이해하고 적용하는 것이 핵심이나, 기본적인 예시 문제로 중간 난이도가 적합하다. 복잡한 조합이나 조건이 추가되면 난이도가 높아질 수 있다.",
+      "importance_score": 60,
+      "runner_up_category": "DESCRIPTIVE"
     }
   ]
 }

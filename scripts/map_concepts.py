@@ -2,8 +2,12 @@
 map_concepts.py
 ────────────────
 팀원 1이 넘겨준 concept_bank.json을 읽어 각 개념에 문제 유형
-(CALCULATION / MULTIPLE_CHOICE / TRUE_FALSE / DESCRIPTIVE)을 매핑하고,
-mapped_concepts.json으로 저장한다. (팀원 3/4의 입력 파일)
+(CALCULATION / MULTIPLE_CHOICE / TRUE_FALSE / DESCRIPTIVE)과 난이도
+(쉬움/보통/어려움)를 매핑하고 mapped_concepts.json으로 저장한다.
+(팀원 3/4의 입력 파일)
+
+비율은 고정하지 않고 개념별 내용에 가장 적합한 값을 그대로 채택한다.
+문제 총 개수는 min(핵심개념 수, 20) — 20개를 넘으면 핵심도 상위 20개만 선택.
 
 사용법:
   python scripts/map_concepts.py --input data/concept_bank.sample.json --output mapped_concepts.json
@@ -19,7 +23,7 @@ from collections import Counter
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from nodes.type_mapping import map_concepts_to_types
+from nodes.type_mapping import MAX_TOTAL, map_concepts_to_types
 
 
 def main() -> None:
@@ -41,7 +45,10 @@ def main() -> None:
     difficulty_counts = Counter(c["difficulty"] for c in mapped)
     low_confidence = [c for c in mapped if c.get("confidence") == "low"]
 
-    print(f"총 {total}개 개념 매핑 완료 -> {args.output}")
+    dropped = len(concepts) - total
+    print(f"입력 개념 {len(concepts)}개 중 {total}개 채택 -> {args.output}")
+    if dropped > 0:
+        print(f"  (핵심개념이 {MAX_TOTAL}개를 초과해 핵심도 상위 {MAX_TOTAL}개만 선택, {dropped}개 제외)")
     print("[유형 분포]")
     for category, count in category_counts.most_common():
         print(f"  {category}: {count}개 ({count / total:.0%})")

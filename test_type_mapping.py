@@ -1,110 +1,111 @@
 """
-type_mapping.py의 결정론적 배정 로직 테스트.
-LLM 호출 없이(=API 키 불필요) 순수 함수만 검증한다.
+type_mapping.py의 순수 로직 테스트.
+LLM 호출 없이(=API 키 불필요) 배정 로직만 검증한다.
 """
 
 import random
-from collections import Counter
 
 import pytest
 
 import nodes.type_mapping as type_mapping
 from nodes.type_mapping import (
-    CATEGORY_TARGET_COUNTS,
+    MAX_TOTAL,
     ConceptScore,
-    DIFFICULTY_TARGET_COUNTS,
-    TARGET_TOTAL,
-    assign_by_quota,
-    finalize_category,
     map_concepts_to_types,
-    scale_quota,
+    pick_category,
+    pick_difficulty,
+    select_concepts,
 )
 
 
-def test_scale_quota_returns_target_as_is_when_total_matches():
-    assert scale_quota(CATEGORY_TARGET_COUNTS, TARGET_TOTAL) == CATEGORY_TARGET_COUNTS
-
-
-def test_scale_quota_sum_always_matches_actual_total():
-    for n in [0, 1, 4, 7, 13, 20, 25, 47]:
-        scaled = scale_quota(CATEGORY_TARGET_COUNTS, n)
-        assert sum(scaled.values()) == n
-        scaled_diff = scale_quota(DIFFICULTY_TARGET_COUNTS, n)
-        assert sum(scaled_diff.values()) == n
-
-
-def test_scale_quota_no_negative_counts():
-    for n in [0, 1, 3]:
-        scaled = scale_quota(DIFFICULTY_TARGET_COUNTS, n)
-        assert all(v >= 0 for v in scaled.values())
-
-
-def test_assign_by_quota_matches_quota_exactly():
-    quota = {"A": 2, "B": 1}
-    items = [
-        ("c1", {"A": 90, "B": 10}),
-        ("c2", {"A": 80, "B": 20}),
-        ("c3", {"A": 70, "B": 95}),
-    ]
-    result = assign_by_quota(items, quota)
-    counts = Counter(result.values())
-    assert counts["A"] == 2
-    assert counts["B"] == 1
-    assert set(result.keys()) == {"c1", "c2", "c3"}
-
-
-def test_assign_by_quota_prefers_higher_scores_when_quota_allows():
-    quota = {"A": 1, "B": 1}
-    items = [
-        ("c1", {"A": 100, "B": 0}),
-        ("c2", {"A": 0, "B": 100}),
-    ]
-    result = assign_by_quota(items, quota)
-    assert result["c1"] == "A"
-    assert result["c2"] == "B"
-
-
-def test_assign_by_quota_bumps_loser_when_top_choice_quota_full():
-    # c1, c2 모두 A를 가장 선호하지만 A 정원은 1명뿐 -> 점수가 낮은 쪽이 B로 밀려남
-    quota = {"A": 1, "B": 1}
-    items = [
-        ("c1", {"A": 100, "B": 10}),
-        ("c2", {"A": 90, "B": 20}),
-    ]
-    result = assign_by_quota(items, quota)
-    assert result["c1"] == "A"
-    assert result["c2"] == "B"
-
-
-def test_finalize_category_forces_descriptive_when_calc_ineligible():
-    # calculation_score가 아무리 높아도 calc_eligible=False면 CALCULATION이 될 수 없다
-    result = finalize_category(
-        bucket="DESCRIPTIVE_OR_CALCULATION",
+def _score(concept_id: str, **overrides) -> ConceptScore:
+    base = dict(
+        concept_id=concept_id,
         calc_eligible=False,
-        calculation_score=99,
-        descriptive_score=10,
+        calculation_score=0,
+        multiple_choice_score=0,
+        true_false_score=0,
+        descriptive_score=0,
+        mapping_reason="테스트용 근거",
+        easy_score=0,
+        medium_score=0,
+        hard_score=0,
+        difficulty_reason="테스트용 근거",
+        importance_score=50,
     )
-    assert result == "DESCRIPTIVE"
+    base.update(overrides)
+    return ConceptScore(**base)
 
 
-def test_finalize_category_picks_calculation_when_eligible_and_higher():
-    result = finalize_category(
-        bucket="DESCRIPTIVE_OR_CALCULATION",
-        calc_eligible=True,
-        calculation_score=80,
-        descriptive_score=40,
-    )
-    assert result == "CALCULATION"
+# ── pick_category ────────────────────────────────────────────────
+
+def test_pick_category_picks_highest_score():
+    s = _score("c1", multiple_choice_score=90, true_false_score=10, descriptive_score=20)
+    category, runner_up, confidence = pick_category(s)
+    assert category == "MULTIPLE_CHOICE"
+    assert confidence == "high"
 
 
-def test_finalize_category_passes_through_non_combined_bucket():
-    assert finalize_category("MULTIPLE_CHOICE", True, 0, 0) == "MULTIPLE_CHOICE"
-    assert finalize_category("TRUE_FALSE", True, 0, 0) == "TRUE_FALSE"
+def test_pick_category_ignores_calculation_when_not_eligible():
+    # calculation_score가 제일 높아도 calc_eligible=False면 후보에서 제외
+    s = _score("c1", calc_eligible=False, calculation_score=99, descriptive_score=40, multiple_choice_score=30)
+    category, _, _ = pick_category(s)
+    assert category == "DESCRIPTIVE"
 
 
-def test_target_counts_sum_to_20():
-    assert sum(CATEGORY_TARGET_COUNTS.values()) == TARGET_TOTAL == 20
-    assert sum(DIFFICULTY_TARGET_COUNTS.values()) == TARGET_TOTAL == 20
+def test_pick_category_allows_calculation_when_eligible():
+    s = _score("c1", calc_eligible=True, calculation_score=99, descriptive_score=40)
+    category, _, _ = pick_category(s)
+    assert category == "CALCULATION"
+
+
+def test_pick_category_low_confidence_when_scores_close():
+    s = _score("c1", multiple_choice_score=55, true_false_score=50, descriptive_score=10)
+    category, runner_up, confidence = pick_category(s)
+    assert category == "MULTIPLE_CHOICE"
+    assert runner_up == "TRUE_FALSE"
+    assert confidence == "low"
+
+
+def test_pick_category_high_confidence_when_scores_far_apart():
+    s = _score("c1", multiple_choice_score=90, true_false_score=20, descriptive_score=10)
+    _, _, confidence = pick_category(s)
+    assert confidence == "high"
+
+
+# ── pick_difficulty ──────────────────────────────────────────────
+
+def test_pick_difficulty_picks_highest_score():
+    s = _score("c1", easy_score=20, medium_score=80, hard_score=30)
+    assert pick_difficulty(s) == "보통"
+
+
+# ── select_concepts (핵심도 상위 max_total개 선택, 아니면 전부) ────
+
+def test_select_concepts_returns_all_when_at_or_under_max():
+    concepts = [{"concept_id": f"c{i}", "concept_name": f"n{i}"} for i in range(5)]
+    scores = {c["concept_id"]: _score(c["concept_id"], importance_score=i) for i, c in enumerate(concepts)}
+    result = select_concepts(concepts, scores, max_total=20)
+    assert result == concepts  # 순서까지 그대로 유지
+
+
+def test_select_concepts_caps_at_max_and_keeps_top_importance():
+    concepts = [{"concept_id": f"c{i}", "concept_name": f"n{i}"} for i in range(25)]
+    # c0..c24, importance_score는 concept_id 뒤 숫자와 동일하게 (c24가 가장 중요)
+    scores = {c["concept_id"]: _score(c["concept_id"], importance_score=i) for i, c in enumerate(concepts)}
+    result = select_concepts(concepts, scores, max_total=20)
+    assert len(result) == 20
+    result_ids = {c["concept_id"] for c in result}
+    expected_ids = {f"c{i}" for i in range(5, 25)}  # 상위 20개 (importance 5~24)
+    assert result_ids == expected_ids
+
+
+def test_select_concepts_preserves_original_order_after_capping():
+    concepts = [{"concept_id": f"c{i}", "concept_name": f"n{i}"} for i in range(25)]
+    scores = {c["concept_id"]: _score(c["concept_id"], importance_score=i) for i, c in enumerate(concepts)}
+    result = select_concepts(concepts, scores, max_total=20)
+    ids = [c["concept_id"] for c in result]
+    assert ids == sorted(ids, key=lambda cid: int(cid[1:]))  # 원래 순서(c5, c6, ... c24) 유지
 
 
 # ── 입력 검증 ────────────────────────────────────────────────────
@@ -136,48 +137,60 @@ def test_map_concepts_to_types_validates_before_calling_llm(monkeypatch):
         map_concepts_to_types([{"concept_id": "c1"}])
 
 
-# ── 20개 규모 종단 검증 (LLM 호출은 합성 점수로 대체) ───────────────
+# ── map_concepts_to_types 종단 테스트 (LLM 호출은 합성 점수로 대체) ─
 
 def _synthetic_scores(concepts: list[dict]) -> dict[str, ConceptScore]:
     rng = random.Random(42)
     scores = {}
-    for c in concepts:
+    for i, c in enumerate(concepts):
         calc_eligible = rng.random() < 0.3
-        scores[c["concept_id"]] = ConceptScore(
-            concept_id=c["concept_id"],
+        scores[c["concept_id"]] = _score(
+            c["concept_id"],
             calc_eligible=calc_eligible,
             calculation_score=rng.randint(0, 100) if calc_eligible else rng.randint(0, 20),
             multiple_choice_score=rng.randint(0, 100),
             true_false_score=rng.randint(0, 100),
             descriptive_score=rng.randint(0, 100),
-            mapping_reason="테스트용 합성 근거",
             easy_score=rng.randint(0, 100),
             medium_score=rng.randint(0, 100),
             hard_score=rng.randint(0, 100),
-            difficulty_reason="테스트용 합성 근거",
+            importance_score=i,  # 뒤로 갈수록 중요한 개념
         )
     return scores
 
 
-def test_map_concepts_to_types_hits_exact_20_target_with_synthetic_scores(monkeypatch):
-    concepts = [_fake_concept(i) for i in range(20)]
+def test_map_concepts_to_types_uses_all_concepts_when_under_max(monkeypatch):
+    concepts = [_fake_concept(i) for i in range(12)]
     monkeypatch.setattr(type_mapping, "_score_all_concepts", _synthetic_scores)
 
     mapped = map_concepts_to_types(concepts)
 
-    assert len(mapped) == 20
-    category_counts = Counter(m["mapped_category"] for m in mapped)
-    difficulty_counts = Counter(m["difficulty"] for m in mapped)
+    assert len(mapped) == 12  # 20개로 억지로 안 채움
+    assert {m["concept_id"] for m in mapped} == {c["concept_id"] for c in concepts}
 
-    assert category_counts["MULTIPLE_CHOICE"] == 8
-    assert category_counts["TRUE_FALSE"] == 6
-    assert category_counts["CALCULATION"] + category_counts["DESCRIPTIVE"] == 6
 
-    assert difficulty_counts["쉬움"] == 6
-    assert difficulty_counts["보통"] == 10
-    assert difficulty_counts["어려움"] == 4
+def test_map_concepts_to_types_caps_at_20_when_over(monkeypatch):
+    concepts = [_fake_concept(i) for i in range(30)]
+    monkeypatch.setattr(type_mapping, "_score_all_concepts", _synthetic_scores)
 
-    # 원본 필드가 보존되는지도 함께 확인
-    assert mapped[0]["concept_name"] == "개념 0"
-    assert "mapping_reason" in mapped[0]
-    assert "difficulty_reason" in mapped[0]
+    mapped = map_concepts_to_types(concepts)
+
+    assert len(mapped) == MAX_TOTAL == 20
+    # importance_score = 인덱스이므로, 상위 20개는 인덱스 10~29
+    kept_ids = {m["concept_id"] for m in mapped}
+    assert kept_ids == {f"c{i}" for i in range(10, 30)}
+
+
+def test_map_concepts_to_types_output_has_no_fixed_ratio_bias(monkeypatch):
+    # 모든 개념이 명백히 서술형 성격이면, 비율 강제 없이 전부 DESCRIPTIVE로 몰려야 한다.
+    concepts = [_fake_concept(i) for i in range(10)]
+
+    def all_descriptive_scores(cs):
+        return {
+            c["concept_id"]: _score(c["concept_id"], descriptive_score=90, multiple_choice_score=10, true_false_score=5)
+            for c in cs
+        }
+
+    monkeypatch.setattr(type_mapping, "_score_all_concepts", all_descriptive_scores)
+    mapped = map_concepts_to_types(concepts)
+    assert all(m["mapped_category"] == "DESCRIPTIVE" for m in mapped)
