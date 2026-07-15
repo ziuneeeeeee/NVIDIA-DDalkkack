@@ -2,6 +2,8 @@ import concurrent.futures
 import json
 import os
 import tempfile
+import uuid
+from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -341,6 +343,53 @@ def api_grade_mock_exam(req: MockExamGradeRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+class RoomGradeRequest(BaseModel):
+    problems: list[dict]
+    student_answers: list[str]
+    mode: str = "mock"           # "simple" | "mock" — 오답노트에 표시용
+    target_difficulty: str = "중"
+
+
+@app.post("/rooms/{room_id}/grade")
+def api_room_grade(room_id: str, req: RoomGradeRequest):
+    """방에서 생성된 문제를 채점하고, 오답노트에서 다시 볼 수 있도록
+    문제/내 답안/채점 근거를 통째로 저장한다."""
+    try:
+        rooms.get_room(room_id)
+    except rooms.RoomNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    try:
+        problem_objs = [Problem(**p) for p in req.problems]
+        result = grade_mock_exam(problem_objs, req.student_answers)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    attempt = {
+        "attempt_id": uuid.uuid4().hex[:10],
+        "mode": req.mode,
+        "target_difficulty": req.target_difficulty,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "problems": req.problems,
+        "student_answers": req.student_answers,
+        "grade_result": result.model_dump(),
+    }
+    rooms.record_attempt(room_id, attempt)
+
+    return {"result": result, "attempt_id": attempt["attempt_id"]}
+
+
+@app.get("/rooms/{room_id}/attempts")
+def api_room_attempts(room_id: str):
+    """오답노트: 이 방에서 채점 완료된 과거 시도 목록 (최신순)."""
+    try:
+        return {"attempts": rooms.list_attempts(room_id)}
+    except rooms.RoomNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn

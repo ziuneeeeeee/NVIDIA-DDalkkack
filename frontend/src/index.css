@@ -422,6 +422,12 @@ body {
   background: rgba(255,255,255,0.05);
 }
 
+.btn-ghost.active {
+  border-color: rgba(167,139,250,0.6);
+  color: #fff;
+  background: rgba(167,139,250,0.16);
+}
+
 .btn-ghost:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .btn-full {
@@ -855,6 +861,7 @@ body {
 .btn-primary:hover:not(:disabled) { box-shadow: 0 10px 24px rgba(91, 74, 212, .3); }
 .btn-ghost { color: var(--bright-primary); border-color: #d9d4fa; background: rgba(255,255,255,.7); }
 .btn-ghost:hover:not(:disabled) { color: var(--bright-primary-dark); border-color: #bdb3f4; background: #f7f5ff; }
+.btn-ghost.active { color: var(--bright-primary-dark); border-color: #bdb3f4; background: #f0edff; }
 
 .problem-type-badge { background: #f0edff; color: var(--bright-primary); border-color: #d9d2ff; }
 .badge-obj { background: #eaf5ff; color: #4383c5; border-color: #cce5fa; }

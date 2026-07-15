@@ -3,6 +3,8 @@ core/rooms.py 테스트. 실제 파일시스템에 임시 디렉터리를 사용
 (LLM/네트워크 호출 없음) 끝나면 정리한다.
 """
 
+import json
+
 import pytest
 
 import core.rooms as rooms
@@ -98,3 +100,31 @@ def test_record_upload_appends_to_uploads_list():
     rooms.record_upload(room["room_id"], {"filename": "b.pdf"})
     uploads = rooms.get_room(room["room_id"])["uploads"]
     assert [u["filename"] for u in uploads] == ["a.pdf", "b.pdf"]
+
+
+def test_create_room_starts_with_empty_attempts():
+    room = rooms.create_room("오답노트 테스트")
+    assert room["attempts"] == []
+
+
+def test_load_room_missing_attempts_field_defaults_to_empty_list(tmp_path):
+    # attempts 필드가 생기기 전에 저장된 room.json을 흉내낸다 (하위호환 확인)
+    room = rooms.create_room("옛날 방")
+    path = rooms._room_json_path(room["room_id"])
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    del data["attempts"]
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+    loaded = rooms.get_room(room["room_id"])
+    assert loaded["attempts"] == []
+
+
+def test_record_attempt_appends_and_list_attempts_returns_newest_first():
+    room = rooms.create_room("오답노트 순서 테스트")
+    rooms.record_attempt(room["room_id"], {"attempt_id": "a1", "mode": "simple"})
+    rooms.record_attempt(room["room_id"], {"attempt_id": "a2", "mode": "mock"})
+
+    attempts = rooms.list_attempts(room["room_id"])
+    assert [a["attempt_id"] for a in attempts] == ["a2", "a1"]

@@ -49,7 +49,9 @@ def _load(room_id: str) -> dict:
     if not os.path.exists(path):
         raise RoomNotFoundError(f"방을 찾을 수 없습니다: {room_id}")
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        room = json.load(f)
+    room.setdefault("attempts", [])  # 이 필드가 생기기 전에 만들어진 방과의 하위호환
+    return room
 
 
 def _save(room: dict) -> None:
@@ -69,6 +71,7 @@ def create_room(name: str) -> dict:
         "uploads": [],          # [{filename, source_type, page_count, chunk_count, concept_count, uploaded_at}]
         "concept_bank": [],     # 병합·중복제거된 원본 개념 (nodes/concept_extraction.py 스키마)
         "mapped_concepts": [],  # concept_bank + mapped_category 등 (nodes/type_mapping.py 산출)
+        "attempts": [],         # 오답노트: 채점 완료된 시도 이력 (record_attempt로 추가)
     }
     _save(room)
     return room
@@ -148,3 +151,19 @@ def record_upload(room_id: str, upload_summary: dict) -> dict:
     room["updated_at"] = datetime.now(timezone.utc).isoformat()
     _save(room)
     return room
+
+
+def record_attempt(room_id: str, attempt: dict) -> dict:
+    """채점이 끝난 시도(단순확인/모의고사)를 오답노트용으로 저장한다.
+    attempt는 problems/student_answers/grade_result를 포함해, 나중에
+    문제·내 답안·채점 근거를 그대로 다시 볼 수 있게 한다."""
+    room = _load(room_id)
+    room["attempts"].append(attempt)
+    room["updated_at"] = datetime.now(timezone.utc).isoformat()
+    _save(room)
+    return room
+
+
+def list_attempts(room_id: str) -> list[dict]:
+    room = _load(room_id)
+    return list(reversed(room["attempts"]))  # 최신 시도가 먼저 오도록
