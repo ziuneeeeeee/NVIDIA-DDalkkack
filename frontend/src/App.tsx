@@ -15,6 +15,10 @@ interface GradingResponse {
 interface MockExamResult {
   total_score: number; max_score: number; comprehensive_feedback: string; results: GradeResult[];
 }
+interface IngestSummary {
+  source_type: string; source_path: string; page_count: number; chunk_count: number;
+  collection: string; concept_count?: number;
+}
 
 /* ─── Helpers ─────────────────────────────────────── */
 function typeBadgeClass(t: string) {
@@ -37,6 +41,12 @@ function ScoreBar({ score, max }: { score: number; max: number }) {
 export default function App() {
   const [mode, setMode] = useState<'single' | 'mock'>('single');
 
+  /* upload */
+  const [uploadFile, setUploadFile]     = useState<File | null>(null);
+  const [uploading, setUploading]       = useState(false);
+  const [uploadResult, setUploadResult] = useState<IngestSummary | null>(null);
+  const [uploadError, setUploadError]   = useState<string | null>(null);
+
   /* single */
   const [concept, setConcept]           = useState('');
   const [difficulty, setDifficulty]     = useState('중');
@@ -56,6 +66,19 @@ export default function App() {
   const [mockResult, setMockResult]     = useState<MockExamResult | null>(null);
 
   /* ── API calls ── */
+  const uploadMaterial = async () => {
+    if (!uploadFile) return;
+    setUploading(true); setUploadResult(null); setUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      const r = await fetch('http://localhost:8000/ingest', { method: 'POST', body: formData });
+      const d = await r.json();
+      if (r.ok) setUploadResult(d); else setUploadError(d.detail || '업로드 실패');
+    } catch { setUploadError('서버 연결 오류'); }
+    finally { setUploading(false); }
+  };
+
   const generateSingle = async () => {
     if (!concept) return;
     setLoadingQ(true); setProblem(null); setGradeData(null); setAnswer('');
@@ -133,6 +156,49 @@ export default function App() {
       </header>
 
       <div className="main-wrap">
+
+        {/* Upload lecture material */}
+        <div className="panel">
+          <label className="field-label">강의자료 업로드 (PDF · 녹음파일 · 녹화강의 영상)</label>
+          <div className="input-row">
+            <input
+              className="text-input"
+              type="file"
+              accept=".pdf,.mp3,.mpeg,.mpga,.m4a,.wav,.mp4,.mov,.mkv,.avi,.webm"
+              onChange={e => {
+                setUploadFile(e.target.files?.[0] ?? null);
+                setUploadResult(null); setUploadError(null);
+              }}
+            />
+            <button className="btn-primary" onClick={uploadMaterial} disabled={uploading || !uploadFile}>
+              {uploading ? <span className="spin" /> : '인덱싱'}
+            </button>
+          </div>
+          <p className="hint">
+            업로드하면 이 자료로 RAG 인덱스를 새로 구축합니다 (기존 인덱스는 대체됨).
+            PDF는 핵심 개념도 함께 자동 추출합니다. 영상은 오디오만 자동 추출해 녹음파일처럼
+            처리하고, 녹음/영상은 Whisper 전사 때문에 시간이 더 걸릴 수 있습니다. 각 25MB 이하 권장.
+          </p>
+          {uploadResult && (
+            <div className="meta-row" style={{ marginTop: '0.8rem' }}>
+              <div className="meta-chip">
+                <span className="mc-label">파일</span>
+                <span className="mc-value">{uploadResult.source_path}</span>
+              </div>
+              <div className="meta-chip">
+                <span className="mc-label">인덱싱 완료</span>
+                <span className="mc-value">{uploadResult.page_count}구간 · {uploadResult.chunk_count}청크</span>
+              </div>
+              {uploadResult.concept_count !== undefined && (
+                <div className="meta-chip">
+                  <span className="mc-label">핵심 개념 추출</span>
+                  <span className="mc-value">{uploadResult.concept_count}개</span>
+                </div>
+              )}
+            </div>
+          )}
+          {uploadError && <p className="hint" style={{ color: '#e0685a' }}>⚠ {uploadError}</p>}
+        </div>
 
         {/* Mode Tabs */}
         <div className="mode-tabs">

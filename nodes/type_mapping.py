@@ -76,12 +76,18 @@ class BatchScoreResult(BaseModel):
 def _build_user_prompt(concepts: list[dict]) -> str:
     lines = [f"개념 총 {len(concepts)}개. 각각에 점수를 매겨라.\n"]
     for c in concepts:
-        lines.append(
+        line = (
             f"- concept_id: {c['concept_id']}\n"
             f"  concept_name: {c['concept_name']}\n"
             f"  concept_summary: {c.get('concept_summary', '')}\n"
             f"  source_context: {c.get('source_context', '')}\n"
         )
+        # 확장 필드(팀원1 산출물에 있으면 분류 근거로 함께 활용, 없으면 생략)
+        if c.get("key_facts"):
+            line += f"  key_facts: {'; '.join(c['key_facts'])}\n"
+        if c.get("learning_objectives"):
+            line += f"  learning_objectives: {'; '.join(c['learning_objectives'])}\n"
+        lines.append(line)
     return "\n".join(lines)
 
 

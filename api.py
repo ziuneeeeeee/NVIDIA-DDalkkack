@@ -1,11 +1,15 @@
+import json
 import os
-from fastapi import FastAPI, HTTPException
+import tempfile
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 from core.models import Problem
 from main import run_generation, run_grading
+from scripts.ingest import ingest as run_ingest, load_pdf, IngestError
+from nodes.concept_extraction import extract_concepts_from_pdf
 
 app = FastAPI(title="Study Helper API")
 
@@ -41,6 +45,65 @@ def api_generate_problem(req: GenerateRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+PDF_EXTENSIONS = {".pdf"}
+AUDIO_EXTENSIONS = {".mp3", ".mpeg", ".mpga", ".m4a", ".wav"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm"}
+
+CONCEPT_BANK_PATH = "data/concept_bank.json"
+
+@app.post("/ingest")
+def api_ingest(file: UploadFile = File(...)):
+    """강의자료 PDF, 녹음, 또는 녹화강의 영상을 업로드받아 RAG 인덱스
+    (ChromaDB + BM25)를 새로 구축한다. PDF는 추가로 핵심 개념도 자동
+    추출해 data/concept_bank.json으로 저장한다 (팀원2 유형 매핑의 입력).
+    영상은 오디오 트랙만 자동 추출해 녹음파일과 동일하게 처리한다."""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext in PDF_EXTENSIONS:
+        kind = "pdf"
+    elif ext in AUDIO_EXTENSIONS:
+        kind = "audio"
+    elif ext in VIDEO_EXTENSIONS:
+        kind = "video"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 파일 형식입니다: '{ext or '(확장자 없음)'}'. "
+                   f"PDF, 녹음 파일(mp3/mpeg/mpga/m4a/wav), 영상(mp4/mov/mkv/avi/webm)만 업로드하세요.",
+        )
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(file.file.read())
+            tmp_path = tmp.name
+
+        if kind == "pdf":
+            summary = run_ingest(pdf_path=tmp_path)
+            pages = load_pdf(tmp_path)
+            concepts = extract_concepts_from_pdf(pages, file.filename)
+            os.makedirs(os.path.dirname(CONCEPT_BANK_PATH), exist_ok=True)
+            with open(CONCEPT_BANK_PATH, "w", encoding="utf-8") as f:
+                json.dump(concepts, f, ensure_ascii=False, indent=2)
+            summary["concept_count"] = len(concepts)
+        elif kind == "audio":
+            summary = run_ingest(audio_path=tmp_path)
+        else:
+            summary = run_ingest(video_path=tmp_path)
+
+        summary["source_path"] = file.filename  # 임시 경로 대신 원본 파일명으로 치환
+        return summary
+
+    except IngestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
 
 @app.post("/grade_answer")
 def api_grade_answer(req: GradeRequest):
