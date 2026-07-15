@@ -252,7 +252,9 @@ def _generate_from_room(room_id: str, specs: list[tuple[str, str, str]]) -> list
 @app.post("/rooms/{room_id}/simple_check")
 def api_room_simple_check(room_id: str, req: RoomQuestionRequest):
     """단순 개념 확인: 이 방의 핵심개념 하나당 문제 하나씩, 개수 선택 없이
-    전부 생성한다. 유형은 팀원2가 이미 콘텐츠 기반으로 정한 값을 그대로 쓴다."""
+    전부 생성한다. 모의고사와 성격이 겹치지 않도록, 팀원2의 콘텐츠 기반
+    유형(서술형/계산형 등)은 쓰지 않고 객관식/참거짓(OX)만 번갈아
+    사용한다 — 빠르게 훑는 단순 확인용이라는 목적에 맞춘 것."""
     try:
         room = rooms.get_room(room_id)
     except rooms.RoomNotFoundError as e:
@@ -260,9 +262,10 @@ def api_room_simple_check(room_id: str, req: RoomQuestionRequest):
     if not room["mapped_concepts"]:
         raise HTTPException(status_code=400, detail="이 방에 아직 분석된 핵심개념이 없습니다. 먼저 자료를 업로드하세요.")
 
+    quick_check_categories = ["MULTIPLE_CHOICE", "TRUE_FALSE"]
     specs = [
-        (c["concept_name"], req.target_difficulty, c["mapped_category"])
-        for c in room["mapped_concepts"]
+        (c["concept_name"], req.target_difficulty, quick_check_categories[i % 2])
+        for i, c in enumerate(room["mapped_concepts"])
     ]
     problems = _generate_from_room(room_id, specs)
     if not problems:
