@@ -166,10 +166,12 @@ def load_audio(path: str, client) -> list[dict]:
 # Step 2. 청크 분할
 # ──────────────────────────────────────────────────────────────────
 
-def chunk_pages(pages: list[dict]) -> list[dict]:
-    """슬라이딩 윈도우로 청크 분할."""
+def chunk_pages(pages: list[dict], source_tag: str = "") -> list[dict]:
+    """슬라이딩 윈도우로 청크 분할. source_tag를 주면 chunk_id 앞에 붙여, 같은
+    방(room)에 여러 자료를 병합할 때 서로 다른 자료의 chunk_id가 겹치지 않게 한다."""
     chunks = []
     step = max(CHUNK_SIZE - CHUNK_OVERLAP, 1)
+    prefix = f"{source_tag}_" if source_tag else ""
     for page in pages:
         words = page["text"].split()
         for i in range(0, max(len(words) - CHUNK_OVERLAP, 1), step):
@@ -179,7 +181,7 @@ def chunk_pages(pages: list[dict]) -> list[dict]:
             chunks.append({
                 "text":     " ".join(chunk_words),
                 "page":     page["page"],
-                "chunk_id": f"p{page['page']}_c{i}",
+                "chunk_id": f"{prefix}p{page['page']}_c{i}",
             })
     print(f"  청크 분할 완료: {len(chunks)}개 (CHUNK_SIZE={CHUNK_SIZE}, OVERLAP={CHUNK_OVERLAP})")
     return chunks
@@ -209,31 +211,45 @@ def store_chroma(
     chunks: list[dict],
     embeddings: list[list[float]],
     collection_name: str,
+    chroma_path: str = CHROMA_PATH,
+    append: bool = False,
 ) -> None:
-    """ChromaDB PersistentClient에 청크 + 임베딩 저장."""
-    chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
-    # 기존 컬렉션 삭제 후 재생성 (재인덱싱 시 중복 방지)
-    try:
-        chroma_client.delete_collection(collection_name)
-        print(f"  기존 컬렉션 '{collection_name}' 삭제")
-    except Exception:
-        pass
-    collection = chroma_client.create_collection(collection_name)
+    """ChromaDB PersistentClient에 청크 + 임베딩 저장.
+    append=True면 기존 컬렉션을 지우지 않고 그대로 추가한다 (방에 여러
+    자료를 병합할 때 사용). chunk_id가 겹치면 add()가 덮어쓰므로
+    chunk_pages()에서 source_tag로 미리 고유하게 만들어야 한다."""
+    chroma_client = chromadb.PersistentClient(path=chroma_path)
+    if append:
+        collection = chroma_client.get_or_create_collection(collection_name)
+    else:
+        try:
+            chroma_client.delete_collection(collection_name)
+            print(f"  기존 컬렉션 '{collection_name}' 삭제")
+        except Exception:
+            pass
+        collection = chroma_client.create_collection(collection_name)
     collection.add(
         embeddings=embeddings,
         documents=[c["text"]     for c in chunks],
         ids=      [c["chunk_id"] for c in chunks],
         metadatas=[{"page": c["page"]} for c in chunks],
     )
-    print(f"  ChromaDB 저장 완료 → {CHROMA_PATH}")
+    print(f"  ChromaDB 저장 완료 → {chroma_path}")
 
 
 # ──────────────────────────────────────────────────────────────────
 # Step 5. BM25 인덱스 저장
 # ──────────────────────────────────────────────────────────────────
 
-def store_bm25(chunks: list[dict]) -> None:
-    """BM25Okapi 인덱스 + 코퍼스를 pickle로 저장."""
+def store_bm25(chunks: list[dict], bm25_path: str = BM25_PATH, append: bool = False) -> None:
+    """BM25Okapi 인덱스 + 코퍼스를 pickle로 저장. append=True면 기존 파일이
+    있을 때 그 청크에 새 청크를 더해 전체를 다시 인덱싱한다 (BM25Okapi는
+    증분 추가를 지원하지 않아 통째로 재계산해야 함)."""
+    if append and os.path.exists(bm25_path):
+        with open(bm25_path, "rb") as f:
+            existing = pickle.load(f)
+        chunks = existing["chunks"] + chunks
+
     tokenized = [c["text"].split() for c in chunks]
     bm25 = BM25Okapi(tokenized)
     payload = {
@@ -241,9 +257,10 @@ def store_bm25(chunks: list[dict]) -> None:
         "corpus": [c["text"] for c in chunks],
         "chunks": chunks,
     }
-    with open(BM25_PATH, "wb") as f:
+    os.makedirs(os.path.dirname(bm25_path) or ".", exist_ok=True)
+    with open(bm25_path, "wb") as f:
         pickle.dump(payload, f)
-    print(f"  BM25 인덱스 저장 완료 → {BM25_PATH}")
+    print(f"  BM25 인덱스 저장 완료 → {bm25_path}")
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -255,9 +272,17 @@ def ingest(
     collection_name: str = COLLECTION_NAME,
     audio_path: str | None = None,
     video_path: str | None = None,
+    chroma_path: str = CHROMA_PATH,
+    bm25_path: str = BM25_PATH,
+    append: bool = False,
+    source_tag: str = "",
 ) -> dict:
-    """PDF, 오디오, 또는 영상을 인덱싱한다. 성공 시 요약 dict를 반환한다
-    (API 응답으로 그대로 쓸 수 있도록)."""
+    """PDF, 오디오, 또는 영상을 인덱싱한다. 성공 시 요약 dict(추출된 pages
+    포함)를 반환한다 (API 응답 + 개념 추출 입력으로 그대로 쓸 수 있도록).
+
+    append=True면 기존 인덱스를 지우지 않고 이어붙인다 (방(room)에 여러
+    자료를 병합할 때 사용). 이때 source_tag를 함께 넘겨 청크 ID 충돌을
+    피해야 한다 (예: 업로드 순번이나 파일명 해시)."""
     cleanup_path = None
     if video_path:
         print("\n[0/4] 영상에서 오디오 트랙 추출 중...")
@@ -282,7 +307,7 @@ def ingest(
             source_type = "pdf"
 
         print("\n[2/4] 청크 분할 중...")
-        chunks = chunk_pages(pages)
+        chunks = chunk_pages(pages, source_tag=source_tag)
         if not chunks:
             raise IngestError("추출된 텍스트가 없습니다. 파일에 인식 가능한 내용이 있는지 확인하세요.")
 
@@ -290,8 +315,8 @@ def ingest(
         embeddings = build_embeddings([c["text"] for c in chunks], client)
 
         print("\n[4/4] DB 저장 중...")
-        store_chroma(chunks, embeddings, collection_name)
-        store_bm25(chunks)
+        store_chroma(chunks, embeddings, collection_name, chroma_path, append=append)
+        store_bm25(chunks, bm25_path, append=append)
 
         print(f"\n✅ 인덱싱 완료! 총 {len(chunks)}개 청크가 저장되었습니다.")
 
@@ -301,6 +326,7 @@ def ingest(
             "page_count": len(pages),
             "chunk_count": len(chunks),
             "collection": collection_name,
+            "pages": pages,
         }
     finally:
         # 영상에서 추출한 임시 오디오 파일 정리

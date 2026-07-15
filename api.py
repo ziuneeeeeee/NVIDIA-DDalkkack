@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import os
 import tempfile
@@ -10,6 +11,10 @@ from core.models import Problem
 from main import run_generation, run_grading
 from scripts.ingest import ingest as run_ingest, load_pdf, IngestError
 from nodes.concept_extraction import extract_concepts_from_pdf
+from nodes.type_mapping import map_concepts_to_types
+from nodes.retrieve import configure_index
+from core.exam_spec import build_exam_specs
+import core.rooms as rooms
 
 app = FastAPI(title="Study Helper API")
 
@@ -103,6 +108,190 @@ def api_ingest(file: UploadFile = File(...)):
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+CATEGORY_TO_KOREAN_TYPE = {
+    "MULTIPLE_CHOICE": "객관식",
+    "TRUE_FALSE": "참거짓",
+    "DESCRIPTIVE": "서술형",
+    "CALCULATION": "단답형",
+}
+MAX_ROOM_EXAM_QUESTIONS = 20
+
+
+class RoomCreateRequest(BaseModel):
+    name: str
+
+class RoomRenameRequest(BaseModel):
+    name: str
+
+class RoomQuestionRequest(BaseModel):
+    target_difficulty: str = "중"
+
+
+@app.post("/rooms")
+def api_create_room(req: RoomCreateRequest):
+    return rooms.create_room(req.name)
+
+@app.get("/rooms")
+def api_list_rooms():
+    return {"rooms": rooms.list_rooms()}
+
+@app.get("/rooms/{room_id}")
+def api_get_room(room_id: str):
+    try:
+        return rooms.get_room(room_id)
+    except rooms.RoomNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.patch("/rooms/{room_id}")
+def api_rename_room(room_id: str, req: RoomRenameRequest):
+    try:
+        return rooms.rename_room(room_id, req.name)
+    except rooms.RoomNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/rooms/{room_id}/ingest")
+def api_room_ingest(room_id: str, file: UploadFile = File(...)):
+    """방에 강의자료(PDF/녹음/영상)를 업로드한다. 이 방의 RAG 인덱스에
+    이어붙이고(append), 추출된 개념은 이름 기준으로 기존 개념과 병합한
+    뒤 팀원2 유형 매핑까지 자동으로 다시 실행한다."""
+    try:
+        room = rooms.get_room(room_id)
+    except rooms.RoomNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext in PDF_EXTENSIONS:
+        kind = "pdf"
+    elif ext in AUDIO_EXTENSIONS:
+        kind = "audio"
+    elif ext in VIDEO_EXTENSIONS:
+        kind = "video"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 파일 형식입니다: '{ext or '(확장자 없음)'}'. "
+                   f"PDF, 녹음 파일(mp3/mpeg/mpga/m4a/wav), 영상(mp4/mov/mkv/avi/webm)만 업로드하세요.",
+        )
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(file.file.read())
+            tmp_path = tmp.name
+
+        source_tag = f"u{len(room['uploads'])}"
+        ingest_kwargs = dict(
+            collection_name="lecture_notes",
+            chroma_path=rooms.room_chroma_path(room_id),
+            bm25_path=rooms.room_bm25_path(room_id),
+            append=True,
+            source_tag=source_tag,
+        )
+        if kind == "pdf":
+            summary = run_ingest(pdf_path=tmp_path, **ingest_kwargs)
+        elif kind == "audio":
+            summary = run_ingest(audio_path=tmp_path, **ingest_kwargs)
+        else:
+            summary = run_ingest(video_path=tmp_path, **ingest_kwargs)
+
+        pages = summary.pop("pages")
+        new_concepts = extract_concepts_from_pdf(pages, file.filename)
+        merged_bank = rooms.merge_concepts(room_id, new_concepts)
+
+        # 병합된 전체 개념을 다시 유형 매핑 (비용은 적음: 방당 개념 수가 적게 유지됨)
+        mapped = map_concepts_to_types(merged_bank)
+        rooms.set_mapped_concepts(room_id, mapped)
+
+        summary["source_path"] = file.filename
+        summary["new_concept_count"] = len(new_concepts)
+        summary["total_concept_count"] = len(merged_bank)
+        rooms.record_upload(room_id, {
+            "filename": file.filename,
+            "source_type": summary["source_type"],
+            "page_count": summary["page_count"],
+            "chunk_count": summary["chunk_count"],
+            "new_concept_count": summary["new_concept_count"],
+        })
+        return summary
+
+    except IngestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+def _generate_from_room(room_id: str, specs: list[tuple[str, str, str]]) -> list[Problem]:
+    """specs: [(concept_name, difficulty, mapped_category), ...].
+    방의 RAG 인덱스를 활성화한 뒤 병렬로 문제를 생성한다."""
+    room = rooms.get_room(room_id)
+    configure_index(rooms.room_chroma_path(room_id), rooms.room_bm25_path(room_id))
+
+    problems_by_index: dict[int, Problem] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(specs), 5) or 1) as executor:
+        futures = {
+            executor.submit(
+                run_generation, concept, difficulty, CATEGORY_TO_KOREAN_TYPE.get(category, "객관식")
+            ): i
+            for i, (concept, difficulty, category) in enumerate(specs)
+        }
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                problems_by_index[futures[future]] = result
+    return [problems_by_index[i] for i in sorted(problems_by_index)]
+
+
+@app.post("/rooms/{room_id}/simple_check")
+def api_room_simple_check(room_id: str, req: RoomQuestionRequest):
+    """단순 개념 확인: 이 방의 핵심개념 하나당 문제 하나씩, 개수 선택 없이
+    전부 생성한다. 유형은 팀원2가 이미 콘텐츠 기반으로 정한 값을 그대로 쓴다."""
+    try:
+        room = rooms.get_room(room_id)
+    except rooms.RoomNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if not room["mapped_concepts"]:
+        raise HTTPException(status_code=400, detail="이 방에 아직 분석된 핵심개념이 없습니다. 먼저 자료를 업로드하세요.")
+
+    specs = [
+        (c["concept_name"], req.target_difficulty, c["mapped_category"])
+        for c in room["mapped_concepts"]
+    ]
+    problems = _generate_from_room(room_id, specs)
+    if not problems:
+        raise HTTPException(status_code=400, detail="문제 생성에 실패했습니다.")
+    return {"problems": problems}
+
+
+@app.post("/rooms/{room_id}/mock_exam")
+def api_room_mock_exam(room_id: str, req: RoomQuestionRequest):
+    """모의고사: 개수 선택 없이 min(핵심개념 수, 20)으로 자동 결정. 중요도
+    가중 배분 + 하/중/상 난이도 순환은 core/exam_spec.py 로직을 그대로 쓴다."""
+    try:
+        room = rooms.get_room(room_id)
+    except rooms.RoomNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if not room["mapped_concepts"]:
+        raise HTTPException(status_code=400, detail="이 방에 아직 분석된 핵심개념이 없습니다. 먼저 자료를 업로드하세요.")
+
+    question_count = min(len(room["mapped_concepts"]), MAX_ROOM_EXAM_QUESTIONS)
+    try:
+        exam_specs = build_exam_specs(room["mapped_concepts"], question_count)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    specs = [(s.concept_name, s.difficulty, s.mapped_category) for s in exam_specs]
+    problems = _generate_from_room(room_id, specs)
+    if not problems:
+        raise HTTPException(status_code=400, detail="모의고사 생성에 실패했습니다.")
+    return {"problems": problems}
 
 
 @app.post("/grade_answer")

@@ -38,6 +38,16 @@ TOP_N           = 3   # 재순위화 후 최종 N개
 _resources: dict | None = None
 
 
+def configure_index(chroma_path: str, bm25_path: str, collection_name: str = COLLECTION_NAME) -> None:
+    """RAG가 검색할 인덱스를 다른 경로(예: 방(room)별 인덱스)로 전환한다.
+    다음 retrieve() 호출부터 새 경로에서 다시 로드하도록 캐시를 비운다."""
+    global CHROMA_PATH, BM25_PATH, COLLECTION_NAME, _resources
+    CHROMA_PATH = chroma_path
+    BM25_PATH = bm25_path
+    COLLECTION_NAME = collection_name
+    _resources = None
+
+
 def _load_resources() -> dict:
     global _resources
     if _resources is not None:

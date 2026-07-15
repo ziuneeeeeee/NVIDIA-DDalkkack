@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './index.css';
 
 /* ─── Types ───────────────────────────────────────── */
@@ -17,10 +17,27 @@ interface MockExamResult {
 }
 interface IngestSummary {
   source_type: string; source_path: string; page_count: number; chunk_count: number;
-  collection: string; concept_count?: number;
+  collection: string; concept_count?: number; new_concept_count?: number; total_concept_count?: number;
+}
+interface RoomSummary {
+  room_id: string; name: string; created_at: string; updated_at: string;
+  upload_count: number; concept_count: number;
+}
+interface MappedConcept {
+  concept_id: string; concept_name: string; concept_summary?: string;
+  importance?: string; mapped_category: string; mapping_reason: string; confidence: string;
+}
+interface UploadRecord { filename: string; source_type: string; page_count: number; chunk_count: number; new_concept_count: number; }
+interface RoomDetail {
+  room_id: string; name: string; created_at: string; updated_at: string;
+  uploads: UploadRecord[]; concept_bank: unknown[]; mapped_concepts: MappedConcept[];
 }
 
 /* ─── Helpers ─────────────────────────────────────── */
+const CATEGORY_LABEL: Record<string, string> = {
+  MULTIPLE_CHOICE: '객관식', TRUE_FALSE: '참거짓', DESCRIPTIVE: '서술형', CALCULATION: '단답형',
+};
+
 function typeBadgeClass(t: string) {
   if (t === '서술형') return 'problem-type-badge badge-essay';
   if (t === '객관식' || t === '단답형') return 'problem-type-badge badge-obj';
@@ -40,6 +57,32 @@ function ScoreBar({ score, max }: { score: number; max: number }) {
 /* ─── App ─────────────────────────────────────────── */
 export default function App() {
   const [mode, setMode] = useState<'single' | 'mock'>('single');
+  const [view, setView] = useState<'rooms' | 'freeform'>('rooms');
+
+  /* rooms: list & create */
+  const [roomList, setRoomList]           = useState<RoomSummary[]>([]);
+  const [loadingRoomList, setLoadingRoomList] = useState(false);
+  const [newRoomName, setNewRoomName]     = useState('');
+  const [creatingRoom, setCreatingRoom]   = useState(false);
+
+  /* rooms: detail */
+  const [currentRoom, setCurrentRoom]     = useState<RoomDetail | null>(null);
+  const [renaming, setRenaming]           = useState(false);
+  const [roomNameDraft, setRoomNameDraft] = useState('');
+
+  /* rooms: upload */
+  const [roomFile, setRoomFile]                 = useState<File | null>(null);
+  const [roomUploading, setRoomUploading]       = useState(false);
+  const [roomUploadResult, setRoomUploadResult] = useState<IngestSummary | null>(null);
+  const [roomUploadError, setRoomUploadError]   = useState<string | null>(null);
+
+  /* rooms: quiz */
+  const [roomDifficulty, setRoomDifficulty]     = useState('중');
+  const [loadingRoomQ, setLoadingRoomQ]         = useState<'simple' | 'mock' | null>(null);
+  const [roomProblems, setRoomProblems]         = useState<Problem[] | null>(null);
+  const [roomAnswers, setRoomAnswers]           = useState<string[]>([]);
+  const [loadingRoomG, setLoadingRoomG]         = useState(false);
+  const [roomResult, setRoomResult]             = useState<MockExamResult | null>(null);
 
   /* upload */
   const [uploadFile, setUploadFile]     = useState<File | null>(null);
@@ -64,6 +107,104 @@ export default function App() {
   const [mockAnswers, setMockAnswers]   = useState<string[]>([]);
   const [loadingMG, setLoadingMG]       = useState(false);
   const [mockResult, setMockResult]     = useState<MockExamResult | null>(null);
+
+  /* ── Room API calls ── */
+  const loadRooms = async () => {
+    setLoadingRoomList(true);
+    try {
+      const r = await fetch('http://localhost:8000/rooms');
+      const d = await r.json();
+      if (r.ok) setRoomList(d.rooms);
+    } catch { /* ignore */ }
+    finally { setLoadingRoomList(false); }
+  };
+
+  useEffect(() => { if (view === 'rooms' && !currentRoom) loadRooms(); }, [view, currentRoom]);
+
+  const createRoom = async () => {
+    if (!newRoomName.trim()) return;
+    setCreatingRoom(true);
+    try {
+      const r = await fetch('http://localhost:8000/rooms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newRoomName }),
+      });
+      const d = await r.json();
+      if (r.ok) { setNewRoomName(''); await enterRoom(d.room_id); }
+      else alert(d.detail || '방 생성 실패');
+    } catch { alert('서버 연결 오류'); }
+    finally { setCreatingRoom(false); }
+  };
+
+  const enterRoom = async (roomId: string) => {
+    setRoomProblems(null); setRoomResult(null); setRoomAnswers([]);
+    setRoomUploadResult(null); setRoomUploadError(null); setRoomFile(null); setRenaming(false);
+    try {
+      const r = await fetch(`http://localhost:8000/rooms/${roomId}`);
+      const d = await r.json();
+      if (r.ok) { setCurrentRoom(d); setRoomNameDraft(d.name); }
+      else alert(d.detail || '방 조회 실패');
+    } catch { alert('서버 연결 오류'); }
+  };
+
+  const exitRoom = () => { setCurrentRoom(null); };
+
+  const submitRename = async () => {
+    if (!currentRoom || !roomNameDraft.trim()) return;
+    try {
+      const r = await fetch(`http://localhost:8000/rooms/${currentRoom.room_id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: roomNameDraft }),
+      });
+      const d = await r.json();
+      if (r.ok) { setCurrentRoom(d); setRenaming(false); }
+      else alert(d.detail || '이름 변경 실패');
+    } catch { alert('서버 연결 오류'); }
+  };
+
+  const uploadToRoom = async () => {
+    if (!roomFile || !currentRoom) return;
+    setRoomUploading(true); setRoomUploadResult(null); setRoomUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', roomFile);
+      const r = await fetch(`http://localhost:8000/rooms/${currentRoom.room_id}/ingest`, { method: 'POST', body: formData });
+      const d = await r.json();
+      if (r.ok) { setRoomUploadResult(d); setRoomFile(null); await enterRoom(currentRoom.room_id); }
+      else setRoomUploadError(d.detail || '업로드 실패');
+    } catch { setRoomUploadError('서버 연결 오류'); }
+    finally { setRoomUploading(false); }
+  };
+
+  const startRoomQuiz = async (kind: 'simple' | 'mock') => {
+    if (!currentRoom) return;
+    setLoadingRoomQ(kind); setRoomProblems(null); setRoomResult(null); setRoomAnswers([]);
+    try {
+      const endpoint = kind === 'simple' ? 'simple_check' : 'mock_exam';
+      const r = await fetch(`http://localhost:8000/rooms/${currentRoom.room_id}/${endpoint}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_difficulty: roomDifficulty }),
+      });
+      const d = await r.json();
+      if (r.ok) { setRoomProblems(d.problems); setRoomAnswers(new Array(d.problems.length).fill('')); }
+      else alert(d.detail || '문제 생성 실패');
+    } catch { alert('서버 연결 오류'); }
+    finally { setLoadingRoomQ(null); }
+  };
+
+  const gradeRoomAnswers = async () => {
+    if (!roomProblems) return;
+    setLoadingRoomG(true); setRoomResult(null);
+    try {
+      const r = await fetch('http://localhost:8000/grade_mock_exam', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problems: roomProblems, student_answers: roomAnswers }),
+      });
+      const d = await r.json();
+      if (r.ok) setRoomResult(d.result); else alert(d.detail || '채점 실패');
+    } catch { alert('서버 연결 오류'); }
+    finally { setLoadingRoomG(false); }
+  };
 
   /* ── API calls ── */
   const uploadMaterial = async () => {
@@ -156,6 +297,238 @@ export default function App() {
       </header>
 
       <div className="main-wrap">
+
+        {/* Top-level view toggle */}
+        <div className="mode-tabs">
+          <button className={`mode-tab ${view === 'rooms' ? 'active' : ''}`} onClick={() => setView('rooms')}>방</button>
+          <button className={`mode-tab ${view === 'freeform' ? 'active' : ''}`} onClick={() => setView('freeform')}>자유 입력</button>
+        </div>
+
+        {/* ══════════ ROOMS: LIST ══════════ */}
+        {view === 'rooms' && !currentRoom && <>
+          <div className="panel">
+            <label className="field-label">새 방 만들기</label>
+            <div className="input-row">
+              <input
+                className="text-input"
+                type="text"
+                placeholder="방 이름 (예: 알고리즘 중간고사 대비)"
+                value={newRoomName}
+                onChange={e => setNewRoomName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && createRoom()}
+              />
+              <button className="btn-primary" onClick={createRoom} disabled={creatingRoom || !newRoomName.trim()}>
+                {creatingRoom ? <span className="spin" /> : '방 만들기'}
+              </button>
+            </div>
+          </div>
+
+          <div className="panel">
+            <p className="panel-title">내 방 목록</p>
+            {loadingRoomList && <p className="hint">불러오는 중…</p>}
+            {!loadingRoomList && roomList.length === 0 && (
+              <p className="hint">아직 만든 방이 없습니다. 위에서 새 방을 만들어보세요.</p>
+            )}
+            {roomList.map(room => (
+              <div
+                key={room.room_id}
+                className="q-block"
+                style={{ cursor: 'pointer' }}
+                onClick={() => enterRoom(room.room_id)}
+              >
+                <div className="crit-top">
+                  <span className="crit-name">{room.name}</span>
+                  <span className="crit-tag pos">{room.concept_count}개 개념</span>
+                </div>
+                <div className="crit-reason">
+                  업로드 {room.upload_count}건 · 마지막 수정 {new Date(room.updated_at).toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>}
+
+        {/* ══════════ ROOMS: DETAIL ══════════ */}
+        {view === 'rooms' && currentRoom && <>
+          <div className="panel">
+            <button className="btn-ghost" onClick={exitRoom} style={{ marginBottom: '0.8rem' }}>← 방 목록으로</button>
+            {!renaming ? (
+              <div className="input-row">
+                <p className="panel-title" style={{ margin: 0, flex: 1 }}>{currentRoom.name}</p>
+                <button className="btn-ghost" onClick={() => setRenaming(true)}>이름 변경</button>
+              </div>
+            ) : (
+              <div className="input-row">
+                <input
+                  className="text-input"
+                  value={roomNameDraft}
+                  onChange={e => setRoomNameDraft(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submitRename()}
+                />
+                <button className="btn-primary" onClick={submitRename}>저장</button>
+                <button className="btn-ghost" onClick={() => { setRenaming(false); setRoomNameDraft(currentRoom.name); }}>취소</button>
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <label className="field-label">강의자료 업로드 (PDF · 녹음파일 · 녹화강의 영상)</label>
+            <div className="input-row">
+              <input
+                className="text-input"
+                type="file"
+                accept=".pdf,.mp3,.mpeg,.mpga,.m4a,.wav,.mp4,.mov,.mkv,.avi,.webm"
+                onChange={e => {
+                  setRoomFile(e.target.files?.[0] ?? null);
+                  setRoomUploadResult(null); setRoomUploadError(null);
+                }}
+              />
+              <button className="btn-primary" onClick={uploadToRoom} disabled={roomUploading || !roomFile}>
+                {roomUploading ? <span className="spin" /> : '업로드 및 분석'}
+              </button>
+            </div>
+            <p className="hint">
+              업로드하면 이 방의 인덱스에 이어붙이고, 개념을 이름 기준으로 병합·중복제거한 뒤
+              문제 유형까지 자동으로 다시 매핑합니다. 여러 파일을 계속 추가할 수 있습니다.
+            </p>
+            {roomUploadResult && (
+              <div className="meta-row" style={{ marginTop: '0.8rem' }}>
+                <div className="meta-chip">
+                  <span className="mc-label">파일</span>
+                  <span className="mc-value">{roomUploadResult.source_path}</span>
+                </div>
+                <div className="meta-chip">
+                  <span className="mc-label">새로 추가된 개념</span>
+                  <span className="mc-value">{roomUploadResult.new_concept_count}개 (총 {roomUploadResult.total_concept_count}개)</span>
+                </div>
+              </div>
+            )}
+            {roomUploadError && <p className="hint" style={{ color: '#e0685a' }}>⚠ {roomUploadError}</p>}
+          </div>
+
+          {currentRoom.mapped_concepts.length > 0 && (
+            <div className="panel">
+              <p className="panel-title">핵심개념 {currentRoom.mapped_concepts.length}개</p>
+              <div>
+                {currentRoom.mapped_concepts.map(c => (
+                  <span
+                    key={c.concept_id}
+                    className={typeBadgeClass(CATEGORY_LABEL[c.mapped_category] || c.mapped_category)}
+                    title={c.mapping_reason}
+                    style={{ marginRight: '0.4rem', marginBottom: '0.4rem', display: 'inline-block' }}
+                  >
+                    {c.concept_name} · {CATEGORY_LABEL[c.mapped_category] || c.mapped_category}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {currentRoom.mapped_concepts.length > 0 && !roomProblems && !roomResult && (
+            <div className="panel">
+              <label className="field-label">난이도</label>
+              <div className="input-row">
+                <select className="select-input" value={roomDifficulty} onChange={e => setRoomDifficulty(e.target.value)}>
+                  <option value="상">상</option>
+                  <option value="중">중</option>
+                  <option value="하">하</option>
+                </select>
+                <button className="btn-primary" onClick={() => startRoomQuiz('simple')} disabled={loadingRoomQ !== null}>
+                  {loadingRoomQ === 'simple' ? <span className="spin" /> : `단순 개념 확인 (${currentRoom.mapped_concepts.length}문제)`}
+                </button>
+                <button className="btn-primary" onClick={() => startRoomQuiz('mock')} disabled={loadingRoomQ !== null}>
+                  {loadingRoomQ === 'mock' ? <span className="spin" /> : `모의고사 (${Math.min(currentRoom.mapped_concepts.length, 20)}문제)`}
+                </button>
+              </div>
+              <p className="hint">문제 개수는 핵심개념 수 기준으로 자동 결정됩니다 (직접 선택 없음).</p>
+            </div>
+          )}
+
+          {currentRoom.mapped_concepts.length === 0 && (
+            <p className="hint" style={{ padding: '0 0.2rem' }}>
+              아직 분석된 핵심개념이 없습니다. 위에서 강의자료를 먼저 업로드하세요.
+            </p>
+          )}
+
+          {/* Room quiz questions */}
+          {roomProblems && !roomResult && (
+            <div className="panel enter">
+              <p className="panel-title">{roomProblems.length}문항</p>
+              {roomProblems.map((p, i) => (
+                <div key={i} className="q-block">
+                  <div className="q-num">Q{i + 1}</div>
+                  <span className={typeBadgeClass(p.type)}>{p.type}</span>
+                  <div className="problem-body" style={{ marginBottom: '0.9rem' }}>{p.question}</div>
+                  <label className="field-label">답안</label>
+                  <textarea
+                    className="textarea-input"
+                    rows={3}
+                    placeholder="답변을 입력하세요…"
+                    value={roomAnswers[i] ?? ''}
+                    onChange={e => { const a = [...roomAnswers]; a[i] = e.target.value; setRoomAnswers(a); }}
+                  />
+                </div>
+              ))}
+              <button
+                className="btn-primary btn-full"
+                onClick={gradeRoomAnswers}
+                disabled={loadingRoomG || roomAnswers.some(a => !a?.trim())}
+              >
+                {loadingRoomG ? <><span className="spin" />&nbsp;일괄 채점 중…</> : `전체 ${roomProblems.length}문항 제출 →`}
+              </button>
+            </div>
+          )}
+
+          {/* Room quiz result */}
+          {roomResult && (
+            <div className="panel result-panel enter">
+              <div className="total-score-card">
+                <div className="ts-num">{roomResult.total_score.toFixed(1)}</div>
+                <div className="ts-label">/ {roomResult.max_score.toFixed(0)}점 만점</div>
+                <div style={{ marginTop: '1.2rem', maxWidth: 300, margin: '1.2rem auto 0' }}>
+                  <ScoreBar score={roomResult.total_score} max={roomResult.max_score} />
+                </div>
+              </div>
+
+              <div className="recommend-panel" style={{ marginBottom: '1.6rem' }}>
+                <div className="rp-title">AI 튜터 종합 피드백</div>
+                <p>{roomResult.comprehensive_feedback}</p>
+              </div>
+
+              <div className="section-divider"><span>문항별 채점 결과</span></div>
+
+              {roomResult.results.map((gr, i) => {
+                const prob = roomProblems![i];
+                const perQ = 100 / roomProblems!.length;
+                const scaled = (gr.final_score / 10) * perQ;
+                const pct = Math.round((scaled / perQ) * 100);
+                return (
+                  <div key={i} className="crit-row">
+                    <div className="crit-top">
+                      <span className="crit-name">Q{i + 1}. {prob.type}</span>
+                      <span className={`crit-tag ${scaled >= perQ * 0.5 ? 'pos' : 'neg'}`}>
+                        {scaled.toFixed(1)} / {perQ.toFixed(1)}점 ({pct}%)
+                      </span>
+                    </div>
+                    <div className="crit-reason" style={{ marginBottom: '0.5rem' }}>{prob.question}</div>
+                    <ScoreBar score={scaled} max={perQ} />
+                  </div>
+                );
+              })}
+
+              <button
+                className="btn-ghost btn-full"
+                onClick={() => { setRoomResult(null); setRoomProblems(null); setRoomAnswers([]); }}
+                style={{ marginTop: '1.5rem' }}
+              >
+                다시 풀기
+              </button>
+            </div>
+          )}
+        </>}
+
+        {/* ══════════ FREEFORM (기존 자유 입력 플로우) ══════════ */}
+        {view === 'freeform' && <>
 
         {/* Upload lecture material */}
         <div className="panel">
@@ -427,6 +800,8 @@ export default function App() {
               </button>
             </div>
           )}
+        </>}
+
         </>}
 
       </div>

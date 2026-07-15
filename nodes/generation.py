@@ -47,7 +47,12 @@ TYPE_MAPPING_GUIDE = """
 """
 
 def classify_question_type_node(state: GenerationState) -> dict:
-    """강의자료에서 추출된 개념을 위 매핑 가이드라인에 따라 문제 유형으로 분류한다."""
+    """강의자료에서 추출된 개념을 위 매핑 가이드라인에 따라 문제 유형으로 분류한다.
+    호출자가 이미 유형을 정해서 넘겼다면(예: 방(room)의 exam_spec이 이미
+    콘텐츠 기반으로 유형을 정한 경우) 다시 LLM으로 분류하지 않고 그대로 둔다."""
+    if state.get("question_type"):
+        return {}
+
     client = get_openai_client()
     prompt = f"""
 개념: {state['concept']}

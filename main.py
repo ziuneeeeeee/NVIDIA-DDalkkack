@@ -104,9 +104,11 @@ def print_grade_result(result: dict) -> None:
     print(f"{'='*60}\n")
 
 
-def run_generation(concept: str, target_difficulty: str = "중") -> Problem | None:
+def run_generation(concept: str, target_difficulty: str = "중", question_type: str = "") -> Problem | None:
     print(f"\n[{concept}] 개념에 대한 문제 생성을 시작합니다 (난이도: {target_difficulty})...")
-    state = initial_generation_state(concept=concept, target_difficulty=target_difficulty, context="")
+    state = initial_generation_state(
+        concept=concept, target_difficulty=target_difficulty, context="", question_type=question_type
+    )
     result = generation_graph.invoke(state)
     if result.get("is_accepted") and result.get("final_problem"):
         print("✅ 문제 생성이 완료되었습니다.")

@@ -63,12 +63,14 @@ class GenerationState(TypedDict):
     retry_count: int
     error_message: str
 
-def initial_generation_state(concept: str, target_difficulty: str, context: str) -> GenerationState:
+def initial_generation_state(
+    concept: str, target_difficulty: str, context: str, question_type: str = ""
+) -> GenerationState:
     return GenerationState(
         concept=concept,
         target_difficulty=target_difficulty,
         context=context,
-        question_type="",
+        question_type=question_type,
         draft_problem=None,
         validation_history=[],
         difficulty_history=[],
