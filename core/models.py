@@ -12,6 +12,7 @@ class Problem(BaseModel):
     problem_id: str
     type: Literal["참거짓", "객관식", "단답형", "서술형", "코딩형"]
     question: str
+    choices: Optional[list[str]] = None
     answer: Optional[str] = None
     model_answer: Optional[str] = None
     test_cases: Optional[list[dict]] = None

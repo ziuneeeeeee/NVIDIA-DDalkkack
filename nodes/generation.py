@@ -11,6 +11,7 @@ MODEL = "gpt-4o"
 class DraftProblem(BaseModel):
     type: Literal["참거짓", "객관식", "단답형", "서술형", "코딩형"]
     question: str
+    choices: list[str] | None = None
     answer: str | None = None
     model_answer: str | None = None
 
@@ -88,8 +89,25 @@ def generate_problem_node(state: GenerationState) -> dict:
 목표 난이도는 '{state['target_difficulty']}' 입니다.
 문제 유형은 반드시 '{question_type}'이어야 합니다. (참거짓/객관식/단답형/서술형/코딩형 중 다른 유형으로 바꾸지 마세요.)
 모든 문제는 **10점 만점**을 기준으로 출제되며, 문제 끝에 "(10점)"을 표기해 주세요.
-참거짓/객관식/단답형인 경우 'answer' 필드에 정답을 반드시 기입하고, 서술형이나 코딩형인 경우 'model_answer' 필드에 모범 답안을 작성하세요.
-참거짓 유형은 'answer' 필드에 "참" 또는 "거짓"만 기입하세요.
+
+[언어 규칙 — 반드시 지킬 것]
+- 문제 본문(질문), 보기, 지시문은 반드시 한국어로 작성하세요. 강의자료 원문이 영어여도
+  마찬가지입니다. 단, 전공/기술 용어(예: PyTorch, Tensor, Heap)는 번역하지 말고 원문
+  그대로 자연스럽게 섞어 쓰세요 (예: "PyTorch에서 Tensor가 중요한 이유는?").
+
+[유형별 필드 규칙]
+- 객관식: 보기를 question 본문에 적지 말고, 반드시 'choices' 필드에 4개짜리 문자열
+  배열로 작성하세요. answer 필드에는 정답 보기의 텍스트를 choices 중 하나와 정확히
+  똑같이(글자 그대로) 기입하세요.
+- 참거짓: 'choices' 필드는 ["참", "거짓"]으로 고정하고, answer 필드에는 "참" 또는
+  "거짓"만 기입하세요.
+- 단답형: 정답이 한두 단어나 숫자처럼 짧고 하나로 확정되게 문제를 설계하고, answer
+  필드에 그 짧은 정답을 기입하세요. 여러 문장을 요구하는 서술형 성격의 질문을 단답형
+  으로 만들지 마세요.
+- 계산을 요구하는 문제라면, answer(또는 model_answer)에 적는 최종 수치가 실제로
+  문제에 주어진 값으로 정확히 계산한 결과와 일치하는지 스스로 검산한 뒤 기입하세요.
+- 서술형이나 코딩형인 경우 'model_answer' 필드에 모범 답안을 작성하세요.
+
 만약 이전 피드백이 있다면, 피드백을 반영하여 수정하세요.
 이전 검증 피드백 이력:
 {chr(10).join(state.get('validation_history', [])) or '없음'}
@@ -124,6 +142,11 @@ def verify_problem_node(state: GenerationState) -> dict:
 {json.dumps(draft, ensure_ascii=False, indent=2)}
 
 생성된 문제가 강의자료의 내용과 사실적으로 일치하는지, 그리고 명확하게 출제되었는지 검증하세요.
+문제가 수치 계산을 요구한다면, answer 또는 model_answer에 적힌 최종 값이 문제에 주어진
+숫자들로 실제로 계산했을 때 나오는 값과 정확히 일치하는지 당신이 직접 처음부터 다시
+계산해서 확인하세요. 계산 과정이나 결과에 조금이라도 오류가 있다면 반드시 반려
+(is_valid=false)하고, 올바른 계산 과정과 정답을 feedback에 구체적으로 적으세요.
+객관식인데 choices가 비어 있거나 4개가 아니면 마찬가지로 반려하세요.
 """
     print("[Verification AI] 문제 내용 검증 중...")
     response = client.beta.chat.completions.parse(
@@ -203,6 +226,7 @@ def conclude_problem_node(state: GenerationState) -> dict:
             problem_id=f"gen_{uuid.uuid4().hex[:8]}",
             type=draft["type"],
             question=draft["question"],
+            choices=draft.get("choices"),
             answer=draft.get("answer"),
             model_answer=draft.get("model_answer"),
         )

@@ -4,7 +4,7 @@ import './index.css';
 /* ─── Types ───────────────────────────────────────── */
 interface Problem {
   problem_id: string; type: string; question: string;
-  answer?: string | null; model_answer?: string | null;
+  choices?: string[] | null; answer?: string | null; model_answer?: string | null;
 }
 interface GradeDetail { point_name: string; earned_score: number; reason: string; }
 interface GradeResult {
@@ -47,6 +47,14 @@ function typeBadgeClass(t: string) {
   if (t === '객관식' || t === '단답형') return 'problem-type-badge badge-obj';
   if (t === '코딩형') return 'problem-type-badge badge-code';
   return 'problem-type-badge badge-generic';
+}
+
+/** 문제의 선택지 목록. choices 필드가 있으면 그대로 쓰고, 참거짓인데
+ * (예전에 생성돼) choices가 없으면 기본 참/거짓 보기로 대체한다. */
+function answerOptionsFor(p: Problem): string[] | null {
+  if (p.choices && p.choices.length > 0) return p.choices;
+  if (p.type === '참거짓') return ['참', '거짓'];
+  return null;
 }
 
 function ScoreBar({ score, max }: { score: number; max: number }) {
@@ -99,6 +107,11 @@ function GradedExamView({
             </div>
 
             <div className="problem-body" style={{ margin: '0.6rem 0' }}>{prob.question}</div>
+            {prob.choices && prob.choices.length > 0 && (
+              <ul style={{ margin: '0 0 0.6rem', paddingLeft: '1.2rem', color: 'var(--bright-muted, inherit)' }}>
+                {prob.choices.map((c, ci) => <li key={ci}>{c}</li>)}
+              </ul>
+            )}
             <ScoreBar score={scaled} max={perQ} />
 
             <div style={{ marginTop: '0.8rem' }}>
@@ -551,21 +564,39 @@ export default function App() {
             {roomProblems && !roomResult && (
               <div className="panel enter">
                 <p className="panel-title">{roomProblems.length}문항</p>
-                {roomProblems.map((p, i) => (
-                  <div key={i} className="q-block">
-                    <div className="q-num">Q{i + 1}</div>
-                    <span className={typeBadgeClass(p.type)}>{p.type}</span>
-                    <div className="problem-body" style={{ marginBottom: '0.9rem' }}>{p.question}</div>
-                    <label className="field-label">답안</label>
-                    <textarea
-                      className="textarea-input"
-                      rows={3}
-                      placeholder="답변을 입력하세요…"
-                      value={roomAnswers[i] ?? ''}
-                      onChange={e => { const a = [...roomAnswers]; a[i] = e.target.value; setRoomAnswers(a); }}
-                    />
-                  </div>
-                ))}
+                {roomProblems.map((p, i) => {
+                  const options = answerOptionsFor(p);
+                  return (
+                    <div key={i} className="q-block">
+                      <div className="q-num">Q{i + 1}</div>
+                      <span className={typeBadgeClass(p.type)}>{p.type}</span>
+                      <div className="problem-body" style={{ marginBottom: '0.9rem' }}>{p.question}</div>
+                      <label className="field-label">답안</label>
+                      {options ? (
+                        <div className="input-row" style={{ flexWrap: 'wrap' }}>
+                          {options.map(opt => (
+                            <button
+                              key={opt}
+                              type="button"
+                              className={`btn-ghost ${roomAnswers[i] === opt ? 'active' : ''}`}
+                              onClick={() => { const a = [...roomAnswers]; a[i] = opt; setRoomAnswers(a); }}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <textarea
+                          className="textarea-input"
+                          rows={3}
+                          placeholder="답변을 입력하세요…"
+                          value={roomAnswers[i] ?? ''}
+                          onChange={e => { const a = [...roomAnswers]; a[i] = e.target.value; setRoomAnswers(a); }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
                 <button
                   className="btn-primary btn-full"
                   onClick={gradeRoomAnswers}
