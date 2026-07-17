@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:8000/mock_exam/generate -H \"Content-Type: application/json\" -d '{\"grade\":\"M1\",\"topic_name\":null}')",
+      "Bash(curl -v http://localhost:8000/docs)",
+      "Bash(powershell -Command \"Get-Process -Id 15680 | Select-Object Id,ProcessName,Path,StartTime\")",
+      "Bash(powershell -Command 'Get-Process | Where-Object {$_.ProcessName -like '\\\\''*python*'\\\\'' -or $_.ProcessName -like '\\\\''*uvicorn*'\\\\''} | Select-Object Id,ProcessName')",
+      "Bash(uvicorn api:app --reload --port 8000)",
+      "Bash(pip show *)",
+      "Bash(pip --version)",
+      "Bash(curl -s -X POST http://localhost:8000/mock_exam/generate -H \"Content-Type: application/json\" -d \"{\\\\\"grade\\\\\":\\\\\"M1\\\\\",\\\\\"topic_name\\\\\":null}\")",
+      "Bash(powershell -Command 'Get-Process | Where-Object {$_.ProcessName -match '\\\\''node|python|uvicorn'\\\\''} | Select-Object Id,ProcessName')",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"ProcessId=19332 or ProcessId=19968 or ProcessId=19064 or ProcessId=18820\\\\\" | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List\")",
+      "Bash(powershell -Command ' *)",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object LocalPort,State,OwningProcess\")",
+      "Bash(powershell -Command \"Get-Process -Id 19064 -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command \"Get-Process -Id 18820 -ErrorAction SilentlyContinue; Get-Process -Id 19064 -ErrorAction SilentlyContinue\")",
+      "Bash(curl -s -m 3 http://localhost:8000/docs -o /dev/null -w \"%{http_code}\\\\n\")"
+    ]
+  }
+}
